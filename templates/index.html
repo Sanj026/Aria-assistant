@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description"
+    content="Aria – Your personal AI assistant for college life. Manage deadlines, track progress, run quizzes, and stay accountable." />
+  <title>Aria ✦ Your Personal AI Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+
+  <!-- ===== ONBOARDING MODAL ===== -->
+  <div id="onboarding-modal" class="modal-overlay">
+    <div class="modal-box onboarding-box">
+      <div class="aria-glow-logo">✦</div>
+
+      <!-- Step 1: Name -->
+      <div class="onboard-step" id="ob-step-1">
+        <h1 class="onboard-title">Hi! I'm Aria ✦</h1>
+        <p class="onboard-sub">Your personal AI assistant for college life. I manage your deadlines, track your
+          progress, quiz you, and keep you accountable — like a brilliant best friend who never sleeps.</p>
+        <p class="onboard-question">First things first — what's your name?</p>
+        <input id="ob-name" class="modal-input" type="text" placeholder="Your name..." autocomplete="off"
+          maxlength="30" />
+        <button class="btn-primary" onclick="obNext(1)">Continue →</button>
+      </div>
+
+      <!-- Step 2: LeetCode -->
+      <div class="onboard-step hidden" id="ob-step-2">
+        <h2 class="onboard-title">Nice to meet you! 👋</h2>
+        <p class="onboard-sub">I can pull your real LeetCode stats and help you track progress, weak areas, and
+          improvement over time.</p>
+        <p class="onboard-question">What's your LeetCode username?</p>
+        <input id="ob-leetcode" class="modal-input" type="text" placeholder="LeetCode username..." autocomplete="off" />
+        <div class="ob-btn-row">
+          <button class="btn-ghost" onclick="obSkip(2)">Skip for now</button>
+          <button class="btn-primary" onclick="obNext(2)">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Subjects -->
+      <div class="onboard-step hidden" id="ob-step-3">
+        <h2 class="onboard-title">What are you studying? 📚</h2>
+        <p class="onboard-sub">I'll track deadlines, quizzes, and topic progress per subject. You can always add or
+          remove subjects later.</p>
+        <div class="subject-input-row">
+          <input id="ob-subject-input" class="modal-input flex-1" type="text" placeholder="e.g. Biology, CS, Math..."
+            onkeydown="if(event.key==='Enter') obAddSubject()" />
+          <button class="btn-icon" onclick="obAddSubject()">+</button>
+        </div>
+        <div id="ob-subjects-chips" class="chips-row"></div>
+        <button class="btn-primary mt-20" onclick="obFinish()">Let's go! →</button>
+      </div>
+
+      <!-- Step 4: Complete -->
+      <div class="onboard-step hidden" id="ob-step-4">
+        <div class="onboard-complete-icon">🎉</div>
+        <h2 class="onboard-title">You're all set!</h2>
+        <p class="onboard-sub" id="ob-complete-greeting">Getting Aria ready for you...</p>
+        <div class="typing-dots mt-20"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS MODAL ===== -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-box settings-box">
+      <div class="modal-header">
+        <h2>⚙️ Settings</h2>
+        <button class="btn-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-section">
+        <label class="settings-label">Your Name</label>
+        <input id="settings-name" class="modal-input" type="text" placeholder="Your name..." />
+      </div>
+      <div class="settings-section">
+        <label class="settings-label">LeetCode Username</label>
+        <input id="settings-leetcode" class="modal-input" type="text" placeholder="LeetCode username..." />
+      </div>
+      <div class="settings-section">
+        <label class="settings-label">Subjects</label>
+        <div class="subject-input-row">
+          <input id="settings-subject-input" class="modal-input flex-1" type="text" placeholder="Add a subject..."
+            onkeydown="if(event.key==='Enter') settingsAddSubject()" />
+          <button class="btn-icon" onclick="settingsAddSubject()">+</button>
+        </div>
+        <div id="settings-subjects-chips" class="chips-row mt-10"></div>
+      </div>
+      <div class="settings-section">
+        <label class="settings-label">📧 EmailJS (Optional — for email reminders)</label>
+        <input id="settings-ejs-pubkey" class="modal-input" type="text" placeholder="EmailJS Public Key..." />
+        <input id="settings-ejs-service" class="modal-input mt-8" type="text" placeholder="EmailJS Service ID..." />
+        <input id="settings-ejs-template" class="modal-input mt-8" type="text" placeholder="EmailJS Template ID..." />
+        <input id="settings-ejs-email" class="modal-input mt-8" type="email" placeholder="Your email address..." />
+      </div>
+      <div class="settings-actions">
+        <button class="btn-danger-ghost" onclick="confirmClearData()">🗑 Clear All Data</button>
+        <button class="btn-primary" onclick="saveSettings()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN APP ===== -->
+  <div id="app" class="app-shell hidden">
+
+    <!-- Mobile Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay hidden" onclick="closeSidebar()"></div>
+
+    <!-- Hamburger -->
+    <button id="hamburger" class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <!-- ===== SIDEBAR ===== -->
+    <nav id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon">✦</span>
+        <span class="brand-name">Aria</span>
+      </div>
+      <ul class="nav-list" role="navigation">
+        <li class="nav-item active" id="nav-chat" onclick="switchView('chat')" role="button" tabindex="0">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">Chat</span>
+        </li>
+        <li class="nav-item" id="nav-calendar" onclick="switchView('calendar')" role="button" tabindex="0">
+          <span class="nav-icon">📅</span>
+          <span class="nav-label">Calendar</span>
+        </li>
+        <li class="nav-item" id="nav-progress" onclick="switchView('progress')" role="button" tabindex="0">
+          <span class="nav-icon">📈</span>
+          <span class="nav-label">Progress</span>
+        </li>
+        <li class="nav-item" id="nav-leetcode" onclick="switchView('leetcode')" role="button" tabindex="0">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-label">LeetCode</span>
+        </li>
+        <li class="nav-item" id="nav-finance" onclick="switchView('finance')" role="button" tabindex="0">
+          <span class="nav-icon">💰</span>
+          <span class="nav-label">Finance</span>
+        </li>
+        <li class="nav-item" id="nav-notes" onclick="switchView('notes')" role="button" tabindex="0">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">Notes</span>
+        </li>
+      </ul>
+      <button class="settings-nav-btn" onclick="openSettings()" id="settings-btn">
+        <span>⚙️</span>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="main" class="main-content">
+
+      <!-- ====== CHAT VIEW ====== -->
+      <section id="view-chat" class="view active">
+        <div class="chat-topbar">
+          <div class="chat-aria-info">
+            <div class="aria-avatar-sm">✦</div>
+            <div>
+              <div class="aria-topbar-name">Aria</div>
+              <div class="aria-topbar-status" id="aria-status">Online</div>
+            </div>
+          </div>
+          <div class="chat-topbar-actions">
+            <button class="topbar-action-btn" onclick="showDeadlinesSummary()" title="View deadlines">📋</button>
+            <button class="topbar-action-btn" onclick="showTodayFocus()" title="Today's focus">🎯</button>
+          </div>
+        </div>
+        <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+        <div class="chat-input-wrap">
+          <div class="quick-chips" id="quick-chips">
+            <button class="quick-chip" onclick="quickSend('what should I focus on today')">🎯 Today's focus</button>
+            <button class="quick-chip" onclick="quickSend('what is due this week')">📋 Due this week</button>
+            <button class="quick-chip" onclick="quickSend('daily wrapup')">✅ Daily wrap-up</button>
+            <button class="quick-chip" onclick="quickSend('give me a quiz')">📝 Quiz me</button>
+            <button class="quick-chip" onclick="quickSend('how is my leetcode going')">🎯 LeetCode stats</button>
+            <button class="quick-chip" onclick="quickSend('went to gym today')">💪 Gym log</button>
+            <button class="quick-chip" onclick="quickSend('I spent $15 on lunch')">🍔 Log Expense</button>
+            <button class="quick-chip" onclick="quickSend('period started today')">🌸 Period started</button>
+          </div>
+          <div class="chat-input-row">
+            <textarea id="chat-input" class="chat-textarea" placeholder="Message Aria..." rows="1"
+              onkeydown="handleChatKeydown(event)" oninput="autoResize(this)" aria-label="Message Aria"></textarea>
+            <button id="send-btn" class="send-button" onclick="sendMessage()" aria-label="Send">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== CALENDAR VIEW ====== -->
+      <section id="view-calendar" class="view hidden">
+        <div class="view-topbar">
+          <h1 class="view-title">Calendar</h1>
+          <div class="calendar-nav">
+            <button class="cal-nav-btn" onclick="calPrev()">‹</button>
+            <span id="cal-period-label" class="cal-period-label">February 2026</span>
+            <button class="cal-nav-btn" onclick="calNext()">›</button>
+            <button id="cal-toggle-btn" class="btn-toggle" onclick="toggleCalendarMode()">Week View</button>
+          </div>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+        <div class="deadline-legend">
+          <span class="legend-dot green"></span><span class="legend-txt">Fine</span>
+          <span class="legend-dot yellow"></span><span class="legend-txt">Start Soon</span>
+          <span class="legend-dot red"></span><span class="legend-txt">Urgent/Overdue</span>
+          <span class="legend-dot purple"></span><span class="legend-txt">Start Date</span>
+        </div>
+        <div id="calendar-day-detail" class="calendar-day-detail hidden"></div>
+      </section>
+
+      <!-- ====== PROGRESS VIEW ====== -->
+      <section id="view-progress" class="view hidden">
+        <div class="view-topbar">
+          <h1 class="view-title">Progress</h1>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tab-daily" onclick="showProgressTab('daily')">📅 Daily Log</button>
+          <button class="tab-btn" id="tab-topics" onclick="showProgressTab('topics')">📚 Topics</button>
+          <button class="tab-btn" id="tab-gym" onclick="showProgressTab('gym')">💪 Gym</button>
+          <button class="tab-btn" id="tab-cycle" onclick="showProgressTab('cycle')">🌸 Cycle</button>
+        </div>
+        <div id="tab-content-daily" class="tab-content"></div>
+        <div id="tab-content-topics" class="tab-content hidden"></div>
+        <div id="tab-content-gym" class="tab-content hidden"></div>
+        <div id="tab-content-cycle" class="tab-content hidden"></div>
+      </section>
+
+      <!-- ====== LEETCODE VIEW ====== -->
+      <section id="view-leetcode" class="view hidden">
+        <div class="view-topbar">
+          <h1 class="view-title">LeetCode 🎯</h1>
+          <button class="btn-secondary" onclick="refreshLeetCode()">↻ Refresh</button>
+        </div>
+        <div id="leetcode-content" class="leetcode-content">
+          <div class="lc-placeholder">
+            <div class="lc-placeholder-icon">🎯</div>
+            <p>Click Refresh to load your LeetCode stats!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== NOTES VIEW ====== -->
+      <section id="view-notes" class="view hidden">
+        <div class="view-topbar">
+          <h1 class="view-title">Notes 📝</h1>
+        </div>
+        <div class="notes-search-bar">
+          <input id="notes-search" class="notes-search-input" type="text" placeholder="Search notes..."
+            oninput="filterNotes()" />
+        </div>
+        <div id="notes-list" class="notes-list">
+          <div class="empty-state">
+            <p>No notes yet. Tell Aria to save one!</p>
+            <p class="empty-sub">Try: <em>"add note: email professor tomorrow"</em></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== FINANCE VIEW ====== -->
+      <section id="view-finance" class="view hidden">
+        <div class="view-topbar">
+          <h1 class="view-title">Finance 💰</h1>
+        </div>
+        <div id="finance-content" class="finance-content">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+
+</html>
