@@ -13,17 +13,11 @@
     rel="stylesheet" />
   <link rel="stylesheet" href="/static/aria_style.css?v=2.0" />
   <script>
-    // Force unregister everything and clear cache
+    // Force unregister everything
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function (registrations) {
         for (let registration of registrations) { registration.unregister(); }
       });
-    }
-    // Hard check if we already ran the cleanup
-    if (!localStorage.getItem('aria_cache_reset_v2')) {
-      localStorage.clear(); // Nuclear reset of local state if still on old version
-      localStorage.setItem('aria_cache_reset_v2', 'true');
-      window.location.reload(true);
     }
   </script>
 </head>
