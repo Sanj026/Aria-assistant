@@ -16,17 +16,35 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Groq API Key (Support both names for easier migration on Render)
-api_key = os.environ.get("GROK_API_KEY") or os.environ.get("GEMINI_API_KEY")
-if api_key:
-    print(f"✅ Found API key starting with: {api_key[:6]}...")
-else:
-    print("❌ No GROK_API_KEY or GEMINI_API_KEY found!")
+# --- CONFIGURATION & LOGGING ---
+print("\n--- Aria Boot Sequence ---")
+grok_key = os.environ.get("GROK_API_KEY")
+gemini_key = os.environ.get("GEMINI_API_KEY")
 
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://api.groq.com/openai/v1",
-) if api_key else None
+if grok_key:
+    print(f"📡 Found GROK_API_KEY (prefix: {grok_key[:6]}...)")
+    api_key = grok_key
+elif gemini_key:
+    print(f"📡 Found GEMINI_API_KEY (prefix: {gemini_key[:6]}...)")
+    api_key = gemini_key
+else:
+    print("❌ CRITICAL: No API key found in Environment Variables!")
+    api_key = None
+
+client = None
+if api_key:
+    try:
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1",
+        )
+        print("✅ OpenAI client initialized for Groq")
+    except Exception as e:
+        print(f"❌ Failed to initialize OpenAI client: {e}")
+else:
+    print("⚠️ Client NOT initialized - API key missing")
+
+print("--- End Boot Sequence ---\n")
 
 
 def build_system_prompt(context):
@@ -229,10 +247,12 @@ def chat():
         context = data.get('context', {})
         chat_history = data.get('chatHistory', [])
 
+        print(f"📩 Incoming /api/chat request: {len(message)} chars from {context.get('userName', 'unknown')}")
+        
         if not client:
-            print("❌ Request failed: Client not initialized (missing API key)")
+            print("❌ Request failed: Client NOT initialized")
             return jsonify({
-                "message": "⚠️ I need a Groq API key to work! Please add your GROK_API_KEY to your Render Environment Variables.",
+                "message": "⚠️ I'm missing my API key on Render. Please double check that GROK_API_KEY is added to your Environment Variables in the Render dashboard.",
                 "action": None
             })
 
@@ -265,6 +285,7 @@ def chat():
         # Create the full prompt with history
         full_prompt = f"{system_prompt}\n\n--- CONVERSATION HISTORY ---{history_text}\n\n--- NEW MESSAGE ---\nUser: {message}"
 
+        print(f"🤖 Calling Groq API (model: llama-3.3-70b-versatile)...")
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -273,6 +294,7 @@ def chat():
             ]
         )
         text = response.choices[0].message.content
+        print(f"✅ Groq responded successfully ({len(text)} chars)")
 
         if '```json' in text:
             text = text.split('```json')[1].split('```')[0].strip()
@@ -292,6 +314,9 @@ def chat():
 
 
     except Exception as e:
+        print(f"🔥 UNHANDLED ERROR in /api/chat: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             "message": f"Hmm, something went wrong on my end 😅 Try again? (Error: {str(e)[:120]})",
             "action": None
