@@ -4,8 +4,7 @@ import requests
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from openai import OpenAI
 from datetime import datetime
 from supabase_client import (
     log_period_start, log_period_end, get_period_history,
@@ -17,8 +16,11 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key) if api_key else None
+api_key = os.environ.get("GROK_API_KEY")
+client = OpenAI(
+    api_key=api_key,
+    base_url="https://api.groq.com/openai/v1",
+) if api_key else None
 
 
 def build_system_prompt(context):
@@ -223,7 +225,7 @@ def chat():
 
         if not client:
             return jsonify({
-                "message": "⚠️ I need a Gemini API key to work! Please add your GEMINI_API_KEY to the .env file and restart the server.",
+                "message": "⚠️ I need a Grok API key to work! Please add your GROK_API_KEY to the .env file and restart the server.",
                 "action": None
             })
 
@@ -256,12 +258,14 @@ def chat():
         # Create the full prompt with history
         full_prompt = f"{system_prompt}\n\n--- CONVERSATION HISTORY ---{history_text}\n\n--- NEW MESSAGE ---\nUser: {message}"
 
-        # Use generate_content instead of chats.create
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=full_prompt
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
         )
-        text = response.text
+        text = response.choices[0].message.content
 
         if '```json' in text:
             text = text.split('```json')[1].split('```')[0].strip()
@@ -347,9 +351,6 @@ def generate_quiz():
         context = data.get('context', {})
         topics = context.get('topics', {})
 
-        if not client:
-            return jsonify({"error": "No Gemini API key configured"}), 500
-
         if quiz_type == 'leetcode':
             prompt = f"""Generate exactly {count} LeetCode-style coding interview questions.
 Mix difficulty: some easy, some medium.
@@ -398,10 +399,13 @@ Q2. [Question text]
 
 Return ONLY the questions, no answers."""
 
-        response = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
         return jsonify({
-            "questions": response.text,
+            "questions": response.choices[0].message.content,
             "count": count,
             "type": quiz_type,
             "subject": subject
@@ -481,13 +485,13 @@ def api_period_phases():
 
 @app.route('/api/list-models', methods=['GET'])
 def list_models():
-    """List available Gemini models."""
+    """List available Grok models."""
     if not client:
         return jsonify({"status": "error", "message": "No API key configured"}), 400
 
     try:
         models = client.models.list()
-        model_names = [m.name for m in models]
+        model_names = [m.id for m in models]
         return jsonify({
             "status": "success",
             "models": model_names
@@ -501,41 +505,34 @@ def list_models():
 
 @app.route('/api/test-key', methods=['GET'])
 def test_api_key():
-    """Test if the Gemini API key is valid and has quota."""
+    """Test if the Grok API key is valid."""
     if not client:
         return jsonify({"status": "error", "message": "No API key configured"}), 400
 
     try:
-        # Test with gemini-2.5-flash-lite (better free tier quota)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents="Say 'API key is working!' in exactly one sentence."
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": "Say 'API key is working!' in exactly one sentence."}]
         )
         return jsonify({
             "status": "success",
-            "message": "✅ API key is valid and has quota!",
-            "response": response.text[:100]
+            "message": "✅ Groq API key is valid!",
+            "response": response.choices[0].message.content
         })
     except Exception as e:
         error_msg = str(e)
         if "429" in error_msg:
             return jsonify({
                 "status": "error",
-                "message": "❌ 429 QUOTA EXCEEDED — Check your GCP billing and quota limits",
+                "message": "❌ 429 QUOTA EXCEEDED — Check your xAI billing",
                 "error": error_msg[:200]
             }), 429
         elif "401" in error_msg or "invalid" in error_msg.lower():
             return jsonify({
                 "status": "error",
-                "message": "❌ API Key is invalid or expired — generate a new one",
+                "message": "❌ API Key is invalid or expired",
                 "error": error_msg[:200]
             }), 401
-        elif "404" in error_msg or "not found" in error_msg.lower():
-            return jsonify({
-                "status": "error",
-                "message": "❌ Model not found — trying to list available models",
-                "error": error_msg[:200]
-            }), 404
         else:
             return jsonify({
                 "status": "error",

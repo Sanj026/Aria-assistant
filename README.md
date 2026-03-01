@@ -1,6 +1,6 @@
 # ✦ Aria — Your Personal AI Assistant
 
-Aria is a warm, smart personal AI assistant that manages your college life: deadlines, study progress, quizzes, gym tracking, period tracking, and daily accountability. Built with Python Flask + Google Gemini API.
+Aria is a warm, smart personal AI assistant that manages your college life: deadlines, study progress, quizzes, gym tracking, period tracking, and daily accountability. Built with Python Flask + Groq API (Llama 3).
 
 ---
 
@@ -8,7 +8,7 @@ Aria is a warm, smart personal AI assistant that manages your college life: dead
 
 ### 1. Prerequisites
 - Python 3.9+
-- A free [Google Gemini API key](https://aistudio.google.com/app/apikey)
+- A free [Groq API key](https://console.groq.com/keys)
 - (Optional) [EmailJS account](https://www.emailjs.com/) for email reminders
 
 ### 2. Install Dependencies
@@ -25,15 +25,13 @@ pip install -r requirements.txt
 > pip install -r requirements.txt
 > ```
 
-### 3. Add Your API Key
-
 Edit `.env` and replace the placeholder:
 
 ```
-GEMINI_API_KEY=your_actual_key_here
+GROK_API_KEY=your_actual_groq_key_here
 ```
 
-Get your free key at: https://aistudio.google.com/app/apikey
+Get your free key at: https://console.groq.com/keys
 
 ### 4. Run the App
 
@@ -103,7 +101,7 @@ All your data is stored in your browser's **localStorage** — completely privat
 
 ```
 aria/
-├── app.py              # Flask backend + Gemini API proxy
+├── app.py              # Flask backend + Groq API proxy
 ├── templates/
 │   └── index.html      # Single-page app
 ├── static/
@@ -120,5 +118,5 @@ aria/
 ## ⚠️ Notes
 
 - Never commit `.env` to git — it's in `.gitignore`
-- Gemini `gemini-1.5-flash` model is free tier friendly
+- Groq `llama-3.3-70b-versatile` model is high-performance and free-tier friendly
 - All user data lives in localStorage — it's private and local to your browser

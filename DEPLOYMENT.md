@@ -40,7 +40,7 @@ git push -u origin main
 ### Step 4: Add Environment Variables
 In Render dashboard, go to **Environment** and add:
 ```
-GEMINI_API_KEY=your_api_key_here
+GROK_API_KEY=your_api_key_here
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_ANON_KEY=your_anon_key_here
 ```
