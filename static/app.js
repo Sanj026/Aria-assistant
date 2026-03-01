@@ -396,6 +396,11 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, context: ctx, chatHistory: hist })
     });
+    console.log("Chat fetch status:", res.status);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Chat fetch error body:", errorText);
+    }
     const data = await res.json();
     hideTyping();
     document.getElementById('aria-status').textContent = 'Online';

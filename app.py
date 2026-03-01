@@ -236,6 +236,16 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({
+        "status": "online",
+        "client_ready": client is not None,
+        "api_key_set": api_key is not None,
+        "server_time": datetime.now().isoformat()
+    })
+
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
