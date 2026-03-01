@@ -17,12 +17,16 @@ const K = {
   NOTIFIED: 'aria_notified',
   EMAILED: 'aria_emailed',
   FINANCE: 'aria_finance', // { balance: 0, transactions: [], splitwise: [] }
+  SYNC_KEY: 'aria_sync_key'
 };
 
 // ===== STORAGE HELPERS =====
 const get = (k, fallback = []) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
 const getObj = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-const set = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const set = (k, v) => {
+  localStorage.setItem(k, JSON.stringify(v));
+  if (getObj(K.SYNC_KEY)) triggerSync();
+};
 
 // ===== GLOBAL STATE =====
 let currentView = 'chat';
@@ -159,9 +163,77 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!user || !user.name) {
     document.getElementById('onboarding-modal').classList.remove('hidden');
   } else {
+    initCloudSync();
     startApp();
   }
 });
+
+let syncTimeout = null;
+function triggerSync() {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(pushToCloud, 3000); // Debounce sync
+}
+
+async function initCloudSync() {
+  const key = getObj(K.SYNC_KEY);
+  if (key) {
+    console.log("🔄 Syncing with cloud...");
+    await pullFromCloud();
+    // Periodic pull every 5 mins
+    setInterval(pullFromCloud, 5 * 60 * 1000);
+  }
+}
+
+async function pushToCloud() {
+  const syncKey = getObj(K.SYNC_KEY);
+  if (!syncKey) return;
+
+  const payload = {};
+  Object.keys(K).forEach(key => {
+    if (key === 'SYNC_KEY' || key === 'CHAT') return; // Don't sync the key itself or large chat history for now
+    const val = getObj(K[key]);
+    if (val) payload[K[key]] = val;
+  });
+
+  try {
+    await fetch('/api/sync/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncKey, payload })
+    });
+    console.log("☁️ Data pushed to cloud");
+  } catch (e) { console.error("Sync push failed", e); }
+}
+
+async function pullFromCloud() {
+  const syncKey = getObj(K.SYNC_KEY);
+  if (!syncKey) return;
+
+  try {
+    const res = await fetch(`/api/sync/pull?syncKey=${encodeURIComponent(syncKey)}`);
+    const result = await res.json();
+    if (result.success && result.data) {
+      Object.keys(result.data).forEach(storageKey => {
+        localStorage.setItem(storageKey, JSON.stringify(result.data[storageKey]));
+      });
+      console.log("☁️ Data pulled from cloud");
+      // If we are in specific views, we might need to re-render, but usually startApp handles this
+    }
+  } catch (e) { console.error("Sync pull failed", e); }
+}
+
+function generateSyncKey() {
+  const key = 'aria-' + Math.random().toString(36).slice(2, 10).toUpperCase();
+  document.getElementById('settings-sync-key').value = key;
+  showToast("New key generated! Remember to click Save.", "info");
+}
+
+function copySyncKey() {
+  const el = document.getElementById('settings-sync-key');
+  el.select();
+  navigator.clipboard.writeText(el.value);
+  showToast("Sync key copied to clipboard!", "success");
+}
 
 function startApp() {
   document.getElementById('onboarding-modal').classList.add('hidden');
@@ -1277,6 +1349,7 @@ function openSettings() {
   document.getElementById('settings-ejs-service').value = user.emailjs?.serviceId || '';
   document.getElementById('settings-ejs-template').value = user.emailjs?.templateId || '';
   document.getElementById('settings-ejs-email').value = user.emailjs?.toEmail || '';
+  document.getElementById('settings-sync-key').value = getObj(K.SYNC_KEY) || '';
   renderSettingsChips();
   document.getElementById('settings-modal').classList.remove('hidden');
 }
@@ -1321,7 +1394,16 @@ function saveSettings() {
     templateId: document.getElementById('settings-ejs-template').value.trim(),
     toEmail: document.getElementById('settings-ejs-email').value.trim(),
   };
+  const syncKey = document.getElementById('settings-sync-key').value.trim();
+  const oldKey = getObj(K.SYNC_KEY);
   set(K.USER, user);
+  if (syncKey !== oldKey) {
+    localStorage.setItem(K.SYNC_KEY, JSON.stringify(syncKey));
+    if (syncKey) {
+      showToast('🔗 Sync key updated. Pulling data...', 'info');
+      initCloudSync(); // This will pull and start interval
+    }
+  }
   // Init EmailJS if configured
   if (user.emailjs.pubKey) {
     try { emailjs.init(user.emailjs.pubKey); } catch (e) { }

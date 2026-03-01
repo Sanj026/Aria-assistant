@@ -214,3 +214,48 @@ def predict_cycle_phases(user_id: str, target_date: str = None) -> dict:
         "cycle_length": cycle_length,
         "stats": stats
     }
+
+
+def save_user_data(sync_key: str, data: dict) -> dict:
+    """Save all user data to Supabase."""
+    if not supabase:
+        return {"error": "Supabase not configured"}
+    
+    try:
+        # data is a dict of { key: value_blob }
+        rows = []
+        for key, blob in data.items():
+            rows.append({
+                "user_id": sync_key,
+                "data_key": key,
+                "data_blob": blob,
+                "updated_at": datetime.now().isoformat()
+            })
+        
+        if rows:
+            response = supabase.table("user_sync").upsert(rows).execute()
+            return {"success": True, "count": len(rows)}
+        return {"success": True, "count": 0}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_all_user_data(sync_key: str) -> dict:
+    """Get all synced data for a user."""
+    if not supabase:
+        return {"error": "Supabase not configured"}
+    
+    try:
+        response = (
+            supabase.table("user_sync")
+            .select("data_key, data_blob")
+            .eq("user_id", sync_key)
+            .execute()
+        )
+        # Convert list of rows to a dict
+        result = {}
+        for row in response.data:
+            result[row["data_key"]] = row["data_blob"]
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"error": str(e)}

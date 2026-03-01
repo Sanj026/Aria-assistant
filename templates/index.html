@@ -108,6 +108,15 @@
         <input id="settings-ejs-template" class="modal-input mt-8" type="text" placeholder="EmailJS Template ID..." />
         <input id="settings-ejs-email" class="modal-input mt-8" type="email" placeholder="Your email address..." />
       </div>
+      <div class="settings-section">
+        <label class="settings-label">🔄 Cloud Sync (For cross-device access)</label>
+        <div class="subject-input-row">
+          <input id="settings-sync-key" class="modal-input flex-1" type="password" placeholder="Enter Sync Key..." />
+          <button class="btn-icon" onclick="copySyncKey()" title="Copy Key">📋</button>
+        </div>
+        <p class="settings-help">Enter your key on your phone to see your data there! Your key is private.</p>
+        <button class="btn-secondary-sm mt-8" onclick="generateSyncKey()">Generate New Key</button>
+      </div>
       <div class="settings-actions">
         <button class="btn-danger-ghost" onclick="confirmClearData()">🗑 Clear All Data</button>
         <button class="btn-primary" onclick="saveSettings()">Save Changes</button>

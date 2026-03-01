@@ -8,7 +8,8 @@ from openai import OpenAI
 from datetime import datetime
 from supabase_client import (
     log_period_start, log_period_end, get_period_history,
-    calculate_cycle_stats, predict_cycle_phases
+    calculate_cycle_stats, predict_cycle_phases,
+    save_user_data, get_all_user_data
 )
 
 load_dotenv()
@@ -456,6 +457,37 @@ Return ONLY the questions, no answers."""
             "subject": subject
         })
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sync/push', methods=['POST'])
+def api_sync_push():
+    """Push local data to Supabase."""
+    try:
+        data = request.json
+        sync_key = data.get('syncKey')
+        payload = data.get('payload') # Dict of { key: data }
+        
+        if not sync_key or not payload:
+            return jsonify({"error": "syncKey and payload required"}), 400
+            
+        result = save_user_data(sync_key, payload)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sync/pull', methods=['GET'])
+def api_sync_pull():
+    """Pull remote data from Supabase."""
+    try:
+        sync_key = request.args.get('syncKey')
+        if not sync_key:
+            return jsonify({"error": "syncKey required"}), 400
+            
+        result = get_all_user_data(sync_key)
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
