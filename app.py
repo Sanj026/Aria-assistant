@@ -16,7 +16,13 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-api_key = os.environ.get("GROK_API_KEY")
+# Groq API Key (Support both names for easier migration on Render)
+api_key = os.environ.get("GROK_API_KEY") or os.environ.get("GEMINI_API_KEY")
+if api_key:
+    print(f"✅ Found API key starting with: {api_key[:6]}...")
+else:
+    print("❌ No GROK_API_KEY or GEMINI_API_KEY found!")
+
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.groq.com/openai/v1",
@@ -224,8 +230,9 @@ def chat():
         chat_history = data.get('chatHistory', [])
 
         if not client:
+            print("❌ Request failed: Client not initialized (missing API key)")
             return jsonify({
-                "message": "⚠️ I need a Grok API key to work! Please add your GROK_API_KEY to the .env file and restart the server.",
+                "message": "⚠️ I need a Groq API key to work! Please add your GROK_API_KEY to your Render Environment Variables.",
                 "action": None
             })
 
@@ -350,6 +357,9 @@ def generate_quiz():
         subject = data.get('subject', '')
         context = data.get('context', {})
         topics = context.get('topics', {})
+        
+        if not client:
+            return jsonify({"error": "⚠️ Groq API key not configured on Render. Please add GROK_API_KEY to Environment Variables."}), 500
 
         if quiz_type == 'leetcode':
             prompt = f"""Generate exactly {count} LeetCode-style coding interview questions.

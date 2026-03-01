@@ -5,22 +5,22 @@
 
 // ===== STORAGE KEYS =====
 const K = {
-  USER:     'aria_user',
-  DEADLINES:'aria_deadlines',
-  NOTES:    'aria_notes',
-  QUIZ:     'aria_quiz',
-  GYM:      'aria_gym',
-  PERIOD:   'aria_period',
+  USER: 'aria_user',
+  DEADLINES: 'aria_deadlines',
+  NOTES: 'aria_notes',
+  QUIZ: 'aria_quiz',
+  GYM: 'aria_gym',
+  PERIOD: 'aria_period',
   PROGRESS: 'aria_progress',
-  TOPICS:   'aria_topics',
-  CHAT:     'aria_chat',
+  TOPICS: 'aria_topics',
+  CHAT: 'aria_chat',
   NOTIFIED: 'aria_notified',
-  EMAILED:  'aria_emailed',
-  FINANCE:  'aria_finance', // { balance: 0, transactions: [], splitwise: [] }
+  EMAILED: 'aria_emailed',
+  FINANCE: 'aria_finance', // { balance: 0, transactions: [], splitwise: [] }
 };
 
 // ===== STORAGE HELPERS =====
-const get = (k, fallback=[]) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
+const get = (k, fallback = []) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
 const getObj = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const set = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
@@ -35,12 +35,12 @@ let isSending = false;
 // ===== UTILITY =====
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const today = () => new Date().toISOString().split('T')[0];
-const fmtDate = (s) => { if (!s) return ''; const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); };
-const fmtTime = () => new Date().toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-const daysBetween = (a, b) => Math.round((new Date(b)-new Date(a))/(1000*60*60*24));
-const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+const fmtDate = (s) => { if (!s) return ''; const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+const fmtTime = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / (1000 * 60 * 60 * 24));
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
-function showToast(msg, type='info') {
+function showToast(msg, type = 'info') {
   const t = document.createElement('div');
   t.className = `toast ${type}`;
   t.textContent = msg;
@@ -78,7 +78,7 @@ function deadlineColor(d) {
 
 // ===== GYM STREAK CALC =====
 function calcGymStats() {
-  const log = get(K.GYM, []).sort((a,b) => a.date > b.date ? -1 : 1);
+  const log = get(K.GYM, []).sort((a, b) => a.date > b.date ? -1 : 1);
   let current = 0, best = 0, streak = 0;
   const todayStr = today();
   // Current streak (consecutive days going to gym from most recent)
@@ -95,7 +95,7 @@ function calcGymStats() {
   current = streak;
   // Best streak
   let bs = 0, cs = 0;
-  const sorted = [...log].sort((a,b) => a.date < b.date ? -1 : 1);
+  const sorted = [...log].sort((a, b) => a.date < b.date ? -1 : 1);
   sorted.forEach(e => { if (e.didGo) { cs++; bs = Math.max(bs, cs); } else { cs = 0; } });
   best = bs;
   // This week count
@@ -106,18 +106,18 @@ function calcGymStats() {
 
 // ===== PERIOD / CYCLE =====
 function calcPeriodContext() {
-  const log = get(K.PERIOD, []).sort((a,b) => a.startDate > b.startDate ? -1 : 1);
+  const log = get(K.PERIOD, []).sort((a, b) => a.startDate > b.startDate ? -1 : 1);
   if (!log.length) return {};
   const lastStart = log[0].startDate;
   // Average cycle from last 3
   let avgCycle = 28;
   if (log.length >= 2) {
     const diffs = [];
-    for (let i = 0; i < Math.min(log.length-1, 3); i++) {
-      const diff = daysBetween(log[i+1].startDate, log[i].startDate);
+    for (let i = 0; i < Math.min(log.length - 1, 3); i++) {
+      const diff = daysBetween(log[i + 1].startDate, log[i].startDate);
       if (diff > 10 && diff < 60) diffs.push(diff);
     }
-    if (diffs.length) avgCycle = Math.round(diffs.reduce((a,b)=>a+b,0)/diffs.length);
+    if (diffs.length) avgCycle = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length);
   }
   const nextStart = new Date(lastStart + 'T12:00:00');
   nextStart.setDate(nextStart.getDate() + avgCycle);
@@ -133,7 +133,7 @@ function buildContext() {
   const gym = calcGymStats();
   const periodCtx = calcPeriodContext();
   const finance = getObj(K.FINANCE) || { balance: 0, transactions: [], splitwise: [] };
-  
+
   return {
     userName: user.name || 'friend',
     subjects: user.subjects || [],
@@ -206,7 +206,7 @@ function obSkip(step) {
 function obAddSubject() {
   const inp = document.getElementById('ob-subject-input');
   const val = inp.value.trim();
-  if (!val || obData.subjects.includes(val)) { inp.value=''; return; }
+  if (!val || obData.subjects.includes(val)) { inp.value = ''; return; }
   obData.subjects.push(val);
   inp.value = '';
   renderObChips();
@@ -215,7 +215,7 @@ function obAddSubject() {
 
 function renderObChips() {
   const el = document.getElementById('ob-subjects-chips');
-  el.innerHTML = obData.subjects.map((s,i) =>
+  el.innerHTML = obData.subjects.map((s, i) =>
     `<span class="chip">${s}<button class="chip-x" onclick="obRemoveSubject(${i})">×</button></span>`
   ).join('');
 }
@@ -234,8 +234,8 @@ async function obFinish() {
   try {
     const ctx = buildContext();
     const res = await fetch('/api/chat', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: `I just set up. My name is ${obData.name}, leetcode: ${obData.leetcode || 'none'}, subjects: ${obData.subjects.join(', ') || 'none set'}. Please welcome me warmly and briefly.`,
         context: ctx,
@@ -244,7 +244,7 @@ async function obFinish() {
     });
     const data = await res.json();
     saveChat('aria', data.message || `Welcome aboard, ${obData.name}! ✦ I'm so excited to be your assistant!`);
-  } catch(e) {
+  } catch (e) {
     saveChat('aria', `Hey ${obData.name}! ✦ So great to meet you! I'm Aria — your personal AI sidekick. I'll help you crush your deadlines, ace your courses, and stay on top of everything. Let's get started!`);
   }
   setTimeout(() => {
@@ -305,7 +305,7 @@ function renderMessageDOM(role, content, ts) {
   const container = document.getElementById('chat-messages');
   const wrap = document.createElement('div');
   wrap.className = `message ${role}`;
-  const time = ts ? new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+  const time = ts ? new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
   if (role === 'aria') {
     wrap.innerHTML = `
       <div class="msg-avatar">✦</div>
@@ -325,8 +325,8 @@ function renderMessageDOM(role, content, ts) {
 
 function escapeHtml(s) {
   return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
 }
 
 function addAriaMessage(text) {
@@ -406,9 +406,10 @@ async function sendMessage() {
     if (data.action) handleAction(data.action, text);
 
   } catch (err) {
+    console.error("Chat error:", err);
     hideTyping();
     document.getElementById('aria-status').textContent = 'Online';
-    addAriaMessage("Hmm, something went wrong connecting to my brain. Check that the server is running with your Gemini API key! 🧠");
+    addAriaMessage("Hmm, something went wrong connecting to my brain. Check your internal connection and ensure your Groq API key is set correctly! 🧠");
   } finally {
     inp.disabled = false;
     document.getElementById('send-btn').disabled = false;
@@ -435,26 +436,26 @@ function handleAction(action, userMsg) {
   if (!action || !action.type) return;
   const d = action.data || {};
   switch (action.type) {
-    case 'ADD_DEADLINE':      handleAddDeadline(d); break;
-    case 'UPDATE_DEADLINE':   handleUpdateDeadline(d); break;
+    case 'ADD_DEADLINE': handleAddDeadline(d); break;
+    case 'UPDATE_DEADLINE': handleUpdateDeadline(d); break;
     case 'COMPLETE_DEADLINE': handleCompleteDeadline(d); break;
-    case 'DELETE_DEADLINE':   handleDeleteDeadline(d); break;
-    case 'ADD_NOTE':          handleAddNote(d); break;
-    case 'DELETE_NOTE':       handleDeleteNote(d); break;
-    case 'LOG_GYM':           handleLogGym(d); break;
-    case 'LOG_PERIOD_START':  handlePeriodStart(d); break;
-    case 'LOG_PERIOD_END':    handlePeriodEnd(d); break;
-    case 'ADD_TOPIC':         handleAddTopic(d); break;
-    case 'COMPLETE_TOPIC':    handleCompleteTopic(d); break;
-    case 'LOG_DAILY_PROGRESS':handleLogProgress(d); break;
-    case 'START_QUIZ':        handleStartQuiz(d); break;
-    case 'GRADE_QUIZ':        handleGradeQuiz(d); break;
-    case 'ADD_SUBJECT':       handleAddSubject(d); break;
-    case 'REMOVE_SUBJECT':    handleRemoveSubject(d); break;
-    case 'SET_BALANCE':       handleSetBalance(d); break;
-    case 'ADD_TRANSACTION':   handleAddTransaction(d); break;
-    case 'ADD_SPLITWISE':     handleAddSplitwise(d); break;
-    case 'COMPLETE_SPLITWISE':handleCompleteSplitwise(d); break;
+    case 'DELETE_DEADLINE': handleDeleteDeadline(d); break;
+    case 'ADD_NOTE': handleAddNote(d); break;
+    case 'DELETE_NOTE': handleDeleteNote(d); break;
+    case 'LOG_GYM': handleLogGym(d); break;
+    case 'LOG_PERIOD_START': handlePeriodStart(d); break;
+    case 'LOG_PERIOD_END': handlePeriodEnd(d); break;
+    case 'ADD_TOPIC': handleAddTopic(d); break;
+    case 'COMPLETE_TOPIC': handleCompleteTopic(d); break;
+    case 'LOG_DAILY_PROGRESS': handleLogProgress(d); break;
+    case 'START_QUIZ': handleStartQuiz(d); break;
+    case 'GRADE_QUIZ': handleGradeQuiz(d); break;
+    case 'ADD_SUBJECT': handleAddSubject(d); break;
+    case 'REMOVE_SUBJECT': handleRemoveSubject(d); break;
+    case 'SET_BALANCE': handleSetBalance(d); break;
+    case 'ADD_TRANSACTION': handleAddTransaction(d); break;
+    case 'ADD_SPLITWISE': handleAddSplitwise(d); break;
+    case 'COMPLETE_SPLITWISE': handleCompleteSplitwise(d); break;
   }
 }
 
@@ -548,14 +549,14 @@ function handlePeriodStart(d) {
   if (existing !== -1) return;
   log.unshift({ id: uid(), startDate: d.date, endDate: null });
   set(K.PERIOD, log);
-  
+
   // Also save to Supabase
   const user = getObj(K.USER) || {};
   fetch('/api/period/log-start', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({userId: user.name || 'default_user', date: d.date, notes: 'Period started'})
-  }).catch(() => {});
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: user.name || 'default_user', date: d.date, notes: 'Period started' })
+  }).catch(() => { });
 
   showToast('🌸 Period start logged', 'info');
   if (currentView === 'progress') renderProgress();
@@ -565,19 +566,19 @@ function handlePeriodEnd(d) {
   const log = get(K.PERIOD, []);
   if (log.length && !log[0].endDate) {
     log[0].endDate = d.endDate || today();
-    
+
     // Also save to Supabase
     const user = getObj(K.USER) || {};
     fetch('/api/period/log-end', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: user.name || 'default_user', 
-        startDate: log[0].startDate, 
+        userId: user.name || 'default_user',
+        startDate: log[0].startDate,
         endDate: d.endDate || today()
       })
-    }).catch(() => {});
-    
+    }).catch(() => { });
+
     set(K.PERIOD, log);
   }
   showToast('Period end logged ✓', 'info');
@@ -650,7 +651,7 @@ function handleAddTransaction(d) {
   const f = getFinance();
   const amt = typeof d.amount === 'number' ? Math.abs(d.amount) : Math.abs(parseFloat(d.amount) || 0);
   const type = d.type === 'income' ? 'income' : 'expense';
-  
+
   if (type === 'income') f.balance += amt;
   else f.balance -= amt;
 
@@ -661,10 +662,10 @@ function handleAddTransaction(d) {
     type: type,
     description: d.description || 'Transaction'
   });
-  
+
   // Keep only last 50 transactions
   if (f.transactions.length > 50) f.transactions.pop();
-  
+
   set(K.FINANCE, f);
   showToast(`${type === 'income' ? 'Income' : 'Expense'} of $${amt.toFixed(2)} logged!`, 'success');
   if (currentView === 'finance') renderFinanceView();
@@ -688,11 +689,11 @@ function handleAddSplitwise(d) {
 function handleCompleteSplitwise(d) {
   const f = getFinance();
   let found = false;
-  
+
   // Try to find by ID first, then fallback to description matching
   let item = f.splitwise.find(s => s.id === d.id && s.status === 'pending');
   if (!item && d.description) {
-      item = f.splitwise.find(s => s.status === 'pending' && s.description.toLowerCase().includes(d.description.toLowerCase()));
+    item = f.splitwise.find(s => s.status === 'pending' && s.description.toLowerCase().includes(d.description.toLowerCase()));
   }
 
   if (item) {
@@ -734,22 +735,23 @@ async function handleStartQuiz(d) {
       const msg = `🎯 Quiz time! ${questions.length} questions. Let's go!\n\n${questions[0]}`;
       addAriaMessage(msg);
     }
-  } catch(e) {
-    addAriaMessage("Couldn't fetch quiz questions. Check your connection!");
+  } catch (e) {
+    console.error("Quiz error:", e);
+    addAriaMessage("Couldn't fetch quiz questions. Check your connection and Groq API key!");
   }
 }
 
 function handleGradeQuiz(d) {
   quizSession = null;
   const quiz = get(K.QUIZ, []);
-  quiz.push({ id: uid(), date: today(), score: d.score, total: d.total, subject: d.subject || 'Mixed', pct: d.total ? Math.round((d.score/d.total)*100) : 0 });
+  quiz.push({ id: uid(), date: today(), score: d.score, total: d.total, subject: d.subject || 'Mixed', pct: d.total ? Math.round((d.score / d.total) * 100) : 0 });
   set(K.QUIZ, quiz);
   showToast(`Quiz done! Score: ${d.score}/${d.total} 🎉`, 'success');
 }
 
 // ===== CALENDAR =====
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function renderCalendar() {
   updateCalPeriodLabel();
@@ -765,21 +767,21 @@ function updateCalPeriodLabel() {
   } else {
     const ws = getWeekStart(calendarDate);
     const we = new Date(ws); we.setDate(we.getDate() + 6);
-    el.textContent = `${MONTHS[ws.getMonth()]} ${ws.getDate()} – ${ws.getMonth()!==we.getMonth()?MONTHS[we.getMonth()]+' ':''}${we.getDate()}, ${we.getFullYear()}`;
+    el.textContent = `${MONTHS[ws.getMonth()]} ${ws.getDate()} – ${ws.getMonth() !== we.getMonth() ? MONTHS[we.getMonth()] + ' ' : ''}${we.getDate()}, ${we.getFullYear()}`;
     toggle.textContent = 'Month View';
   }
 }
 
 function calPrev() {
-  if (calendarMode === 'month') { calendarDate.setMonth(calendarDate.getMonth()-1); }
-  else { calendarDate.setDate(calendarDate.getDate()-7); }
+  if (calendarMode === 'month') { calendarDate.setMonth(calendarDate.getMonth() - 1); }
+  else { calendarDate.setDate(calendarDate.getDate() - 7); }
   calendarDate = new Date(calendarDate);
   renderCalendar();
 }
 
 function calNext() {
-  if (calendarMode === 'month') { calendarDate.setMonth(calendarDate.getMonth()+1); }
-  else { calendarDate.setDate(calendarDate.getDate()+7); }
+  if (calendarMode === 'month') { calendarDate.setMonth(calendarDate.getMonth() + 1); }
+  else { calendarDate.setDate(calendarDate.getDate() + 7); }
   calendarDate = new Date(calendarDate);
   renderCalendar();
 }
@@ -804,7 +806,7 @@ function renderMonthView() {
   const grid = document.getElementById('calendar-grid');
   const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
   const firstDay = new Date(y, m, 1).getDay();
-  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
   const todayStr = today();
 
   let html = '<div class="cal-month-grid">';
@@ -812,19 +814,19 @@ function renderMonthView() {
 
   // Leading empty cells
   for (let i = 0; i < firstDay; i++) {
-    const prevDate = new Date(y, m, -firstDay+i+1);
+    const prevDate = new Date(y, m, -firstDay + i + 1);
     html += `<div class="cal-day other-month"><div class="cal-day-num">${prevDate.getDate()}</div></div>`;
   }
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = dateStr === todayStr;
     const entries = deadlinesForDate(dateStr);
     const dots = entries.map(e => {
       const color = e.dueDate === dateStr ? deadlineColor(e) : 'purple';
       return `<span class="cal-dot ${color}" title="${e.title}"></span>`;
     }).join('');
-    html += `<div class="cal-day${isToday?' today':''}" onclick="showDayDetail('${dateStr}')">
+    html += `<div class="cal-day${isToday ? ' today' : ''}" onclick="showDayDetail('${dateStr}')">
       <div class="cal-day-num">${day}</div>
       <div class="cal-dot-row">${dots}</div>
     </div>`;
@@ -848,7 +850,7 @@ function renderWeekView() {
 
   let html = '<div class="cal-week-grid">';
   for (let i = 0; i < 7; i++) {
-    const d = new Date(ws); d.setDate(d.getDate()+i);
+    const d = new Date(ws); d.setDate(d.getDate() + i);
     const dateStr = d.toISOString().split('T')[0];
     const isToday = dateStr === todayStr;
     const entries = deadlinesForDate(dateStr);
@@ -856,7 +858,7 @@ function renderWeekView() {
       const color = e.dueDate === dateStr ? deadlineColor(e) : 'purple';
       return `<div class="cal-deadline-item ${color}" title="${e.subject}">${e.title}</div>`;
     }).join('');
-    html += `<div class="cal-week-day${isToday?' today':''}">
+    html += `<div class="cal-week-day${isToday ? ' today' : ''}">
       <div class="cal-week-day-header">${DAYS[d.getDay()]}</div>
       <div class="cal-week-day-num">${d.getDate()}</div>
       ${items || '<div style="font-size:11px;color:var(--text3);margin-top:4px">Free</div>'}
@@ -874,7 +876,7 @@ function showDayDetail(dateStr) {
   entries.forEach(e => {
     const color = e.dueDate === dateStr ? deadlineColor(e) : 'purple';
     const label = e.dueDate === dateStr ? 'DUE' : 'START';
-    html += `<span class="cal-deadline-item ${color}" style="display:inline-block;margin:4px 4px 0 0">[${label}] ${e.title}${e.subject?' · '+e.subject:''}</span>`;
+    html += `<span class="cal-deadline-item ${color}" style="display:inline-block;margin:4px 4px 0 0">[${label}] ${e.title}${e.subject ? ' · ' + e.subject : ''}</span>`;
   });
   panel.innerHTML = html;
   panel.classList.remove('hidden');
@@ -894,7 +896,7 @@ function renderProgress() {
 
 function showProgressTab(tab) {
   currentProgressTab = tab;
-  ['daily','topics','gym','cycle'].forEach(t => {
+  ['daily', 'topics', 'gym', 'cycle'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
     document.getElementById(`tab-content-${t}`).classList.toggle('hidden', t !== tab);
   });
@@ -911,7 +913,7 @@ function renderDailyLog() {
     el.innerHTML = `<div class="empty-state"><p>No daily logs yet!</p><p class="empty-sub">Say <em>"daily wrapup"</em> to Aria to log your day 📅</p></div>`;
     return;
   }
-  el.innerHTML = log.slice(0,30).map(e => `
+  el.innerHTML = log.slice(0, 30).map(e => `
     <div class="log-entry">
       <div class="log-entry-date">${fmtDate(e.date)}</div>
       <div class="log-entry-text">${escapeHtml(e.summary)}</div>
@@ -936,11 +938,11 @@ function renderTopicsTab() {
     const color = pct >= 70 ? 'bar-green' : pct >= 40 ? 'bar-yellow' : 'bar-purple';
     const topicList = allTopics.map(t => {
       const done = completedSet.has(t);
-      const info = done ? completed.find(c=>c.topic===t) : null;
+      const info = done ? completed.find(c => c.topic === t) : null;
       return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;">
-        <span style="color:${done?'var(--green)':'var(--text3)'}">${done?'✓':'○'}</span>
-        <span style="color:${done?'var(--text)':'var(--text2)'};">${escapeHtml(t)}</span>
-        ${info?`<span style="color:var(--text3);font-size:11px;margin-left:auto">${fmtDate(info.date)}</span>`:''}
+        <span style="color:${done ? 'var(--green)' : 'var(--text3)'}">${done ? '✓' : '○'}</span>
+        <span style="color:${done ? 'var(--text)' : 'var(--text2)'};">${escapeHtml(t)}</span>
+        ${info ? `<span style="color:var(--text3);font-size:11px;margin-left:auto">${fmtDate(info.date)}</span>` : ''}
       </div>`;
     }).join('');
     return `
@@ -961,7 +963,7 @@ function renderTopicsTab() {
 function renderGymTab() {
   const el = document.getElementById('tab-content-gym');
   const stats = calcGymStats();
-  const log = get(K.GYM, []).sort((a,b) => a.date > b.date ? -1 : 1).slice(0,20);
+  const log = get(K.GYM, []).sort((a, b) => a.date > b.date ? -1 : 1).slice(0, 20);
   el.innerHTML = `
     <div class="gym-stats-row">
       <div class="gym-stat"><div class="gym-stat-val">${stats.currentStreak}</div><div class="gym-stat-label">Current Streak</div></div>
@@ -971,38 +973,38 @@ function renderGymTab() {
     ${log.map(e => `
       <div class="gym-log-row">
         <span class="gym-log-date">${fmtDate(e.date)}</span>
-        <span class="gym-log-status ${e.didGo?'went':'skipped'}">${e.didGo?'💪 Went':'😴 Skipped'}</span>
+        <span class="gym-log-status ${e.didGo ? 'went' : 'skipped'}">${e.didGo ? '💪 Went' : '😴 Skipped'}</span>
       </div>`).join('') || '<div class="empty-state"><p>No gym logs yet. Tell Aria "went to gym today"!</p></div>'}`;
 }
 
 function renderCycleTab() {
   const el = document.getElementById('tab-content-cycle');
   const ctx = calcPeriodContext();
-  const log = get(K.PERIOD, []).sort((a,b)=>a.startDate>b.startDate?-1:1);
-  
-  const nextPeriodHtml = !log.length || !ctx.lastStart 
+  const log = get(K.PERIOD, []).sort((a, b) => a.startDate > b.startDate ? -1 : 1);
+
+  const nextPeriodHtml = !log.length || !ctx.lastStart
     ? `<div class="empty-state"><p>No cycle data yet.</p><p class="empty-sub">Tell Aria: <em>"period started on [date]"</em> or use the form below to add past dates.</p></div>`
     : (() => {
-        const daysMsg = ctx.daysUntilNext > 0
-          ? `in ${ctx.daysUntilNext} days`
-          : ctx.daysUntilNext === 0 ? 'today' : `${Math.abs(ctx.daysUntilNext)} days ago (may be overdue)`;
-        return `
+      const daysMsg = ctx.daysUntilNext > 0
+        ? `in ${ctx.daysUntilNext} days`
+        : ctx.daysUntilNext === 0 ? 'today' : `${Math.abs(ctx.daysUntilNext)} days ago (may be overdue)`;
+      return `
           <div class="cycle-card">
             <div class="cycle-next">Next predicted period</div>
             <div class="cycle-date">${fmtDate(ctx.nextPredicted)}</div>
             <div class="cycle-days-away">${daysMsg} · avg cycle: ${ctx.avgCycle} days</div>
-            ${ctx.isPMS?'<div style="margin-top:10px;font-size:13px;color:var(--accent-light);">🌸 PMS week ahead — Aria knows to be extra gentle 💜</div>':''}
+            ${ctx.isPMS ? '<div style="margin-top:10px;font-size:13px;color:var(--accent-light);">🌸 PMS week ahead — Aria knows to be extra gentle 💜</div>' : ''}
           </div>
-          ${log.slice(0,6).map(e=>{
-            const isRecent = daysBetween(e.startDate, today()) <= 10;
-            return `
+          ${log.slice(0, 6).map(e => {
+        const isRecent = daysBetween(e.startDate, today()) <= 10;
+        return `
             <div class="gym-log-row">
               <span class="gym-log-date">🌸 ${fmtDate(e.startDate)}</span>
-              <span style="font-size:12px;color:var(--text3)">${e.endDate ? 'ended '+fmtDate(e.endDate) : (isRecent ? 'ongoing' : '')}</span>
+              <span style="font-size:12px;color:var(--text3)">${e.endDate ? 'ended ' + fmtDate(e.endDate) : (isRecent ? 'ongoing' : '')}</span>
             </div>`;
-          }).join('')}`;
-      })();
-  
+      }).join('')}`;
+    })();
+
   el.innerHTML = `
     ${nextPeriodHtml}
     <div class="card-divider"></div>
@@ -1023,7 +1025,7 @@ function addHistoricalPeriod() {
     showToast('Please select a date', 'warning');
     return;
   }
-  
+
   const log = get(K.PERIOD, []);
   const existing = log.findIndex(e => e.startDate === input.value);
   if (existing !== -1) {
@@ -1031,19 +1033,19 @@ function addHistoricalPeriod() {
     input.value = '';
     return;
   }
-  
-  log.push({id: uid(), startDate: input.value, endDate: null});
+
+  log.push({ id: uid(), startDate: input.value, endDate: null });
   set(K.PERIOD, log);
   input.value = '';
-  
+
   // Also save to Supabase
   const user = getObj(K.USER) || {};
   fetch('/api/period/log-start', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({userId: user.name || 'default_user', date: input.value, notes: 'Historical data'})
-  }).catch(() => {});
-  
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: user.name || 'default_user', date: input.value, notes: 'Historical data' })
+  }).catch(() => { });
+
   showToast('📅 Period date added!', 'success');
   renderProgress();
 }
@@ -1066,13 +1068,13 @@ async function refreshLeetCode() {
     if (data.error) throw new Error(data.error);
     lcCache = data;
     renderLeetCodeStats(data, username);
-  } catch(e) {
+  } catch (e) {
     document.getElementById('leetcode-content').innerHTML = `<div class="empty-state"><p>Couldn't load LeetCode stats 😕</p><p class="empty-sub">${e.message}</p></div>`;
   }
 }
 
 function renderLeetCodeView() {
-  if (lcCache) { renderLeetCodeStats(lcCache, (getObj(K.USER)||{}).leetcodeUsername || ''); return; }
+  if (lcCache) { renderLeetCodeStats(lcCache, (getObj(K.USER) || {}).leetcodeUsername || ''); return; }
   // Auto-refresh if username exists
   const user = getObj(K.USER) || {};
   if (user.leetcodeUsername) refreshLeetCode();
@@ -1088,15 +1090,15 @@ function renderLeetCodeStats(data, username) {
   const stats = user.submitStats?.acSubmissionNum || [];
   const allQ = data?.data?.allQuestionsCount || [];
 
-  const getCount = (diff) => (stats.find(s=>s.difficulty===diff)||{}).count || 0;
-  const getTotal = (diff) => (allQ.find(q=>q.difficulty===diff)||{}).count || 0;
-  const easy=getCount('Easy'), medium=getCount('Medium'), hard=getCount('Hard');
-  const teasy=getTotal('Easy'), tmedium=getTotal('Medium'), thard=getTotal('Hard');
-  const total = easy+medium+hard;
+  const getCount = (diff) => (stats.find(s => s.difficulty === diff) || {}).count || 0;
+  const getTotal = (diff) => (allQ.find(q => q.difficulty === diff) || {}).count || 0;
+  const easy = getCount('Easy'), medium = getCount('Medium'), hard = getCount('Hard');
+  const teasy = getTotal('Easy'), tmedium = getTotal('Medium'), thard = getTotal('Hard');
+  const total = easy + medium + hard;
 
-  const pctE = teasy ? Math.round((easy/teasy)*100) : 0;
-  const pctM = tmedium ? Math.round((medium/tmedium)*100) : 0;
-  const pctH = thard ? Math.round((hard/thard)*100) : 0;
+  const pctE = teasy ? Math.round((easy / teasy) * 100) : 0;
+  const pctM = tmedium ? Math.round((medium / tmedium) * 100) : 0;
+  const pctH = thard ? Math.round((hard / thard) * 100) : 0;
 
   const ranking = user.profile?.ranking ? `Rank #${user.profile.ranking.toLocaleString()}` : '';
   const analysis = getLCAnalysis(easy, medium, hard, teasy, tmedium, thard);
@@ -1140,10 +1142,10 @@ function renderLCBar(label, pct, cls) {
 }
 
 function getLCAnalysis(easy, medium, hard, te, tm, th) {
-  const total = easy+medium+hard;
+  const total = easy + medium + hard;
   if (!total) return "No problems solved yet — time to start grinding! Start with the easy ones to build momentum. You've got this! 💪";
-  const pctM = tm ? Math.round((medium/tm)*100) : 0;
-  const pctH = th ? Math.round((hard/th)*100) : 0;
+  const pctM = tm ? Math.round((medium / tm) * 100) : 0;
+  const pctH = th ? Math.round((hard / th) * 100) : 0;
   let msg = `✦ You've solved ${total} problems total. `;
   if (medium < 20) msg += `Focus on building your Medium problem library — it's the bread and butter of interviews. `;
   else if (pctM < 15) msg += `Your Medium completion rate is at ${pctM}% — keep pushing! `;
@@ -1153,7 +1155,7 @@ function getLCAnalysis(easy, medium, hard, te, tm, th) {
 }
 
 // ===== NOTES VIEW =====
-function renderNotes(query='') {
+function renderNotes(query = '') {
   const el = document.getElementById('notes-list');
   let notes = get(K.NOTES, []);
   if (query) notes = notes.filter(n => n.text.toLowerCase().includes(query.toLowerCase()));
@@ -1190,12 +1192,12 @@ function renderFinanceView() {
   const el = document.getElementById('finance-content');
   if (!el) return;
   const f = getFinance();
-  
+
   const pendingSplitwise = f.splitwise.filter(s => s.status === 'pending');
-  
+
   // Quick format
-  const fmtMoney = (n) => typeof n === 'number' ? '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '$0.00';
-  
+  const fmtMoney = (n) => typeof n === 'number' ? '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '$0.00';
+
   el.innerHTML = `
     <!-- Balance Header -->
     <div class="finance-balance-card">
@@ -1206,9 +1208,9 @@ function renderFinanceView() {
     <!-- Splitwise Reminders section -->
     <div class="finance-section">
       <h3 class="finance-section-title">Splitwise Reminders ${pendingSplitwise.length > 0 ? `<span class="stat-badge">${pendingSplitwise.length}</span>` : ''}</h3>
-      ${pendingSplitwise.length === 0 ? 
-        `<p class="finance-empty">No pending Splitwise items.</p>` : 
-        `<div class="splitwise-list">
+      ${pendingSplitwise.length === 0 ?
+      `<p class="finance-empty">No pending Splitwise items.</p>` :
+      `<div class="splitwise-list">
           ${pendingSplitwise.map(s => `
             <div class="splitwise-item" onclick="toggleSplitwiseItem('${s.id}')">
               <div class="splitwise-checkbox"></div>
@@ -1220,15 +1222,15 @@ function renderFinanceView() {
             </div>
           `).join('')}
         </div>`
-      }
+    }
     </div>
 
     <!-- Recent Transactions -->
     <div class="finance-section">
       <h3 class="finance-section-title">Recent Transactions</h3>
-      ${f.transactions.length === 0 ? 
-        `<p class="finance-empty">No transactions yet. Tell Aria when you spend or earn money!</p>` : 
-        `<div class="finance-tx-list">
+      ${f.transactions.length === 0 ?
+      `<p class="finance-empty">No transactions yet. Tell Aria when you spend or earn money!</p>` :
+      `<div class="finance-tx-list">
           ${f.transactions.slice(0, 15).map(tx => `
             <div class="finance-tx-item">
               <div class="finance-tx-icon ${tx.type === 'income' ? 'income' : 'expense'}">
@@ -1244,13 +1246,13 @@ function renderFinanceView() {
             </div>
           `).join('')}
         </div>`
-      }
+    }
     </div>
   `;
 }
 
 // Called directly from UI click
-window.toggleSplitwiseItem = function(id) {
+window.toggleSplitwiseItem = function (id) {
   const f = getFinance();
   const item = f.splitwise.find(s => s.id === id);
   if (item) {
@@ -1281,8 +1283,8 @@ function closeSettings() {
 function renderSettingsChips() {
   const user = getObj(K.USER) || {};
   const subjects = user.subjects || [];
-  document.getElementById('settings-subjects-chips').innerHTML = subjects.map((s,i) =>
-    `<span class="chip">${s}<button class="chip-x" onclick="settingsRemoveSubject('${s.replace(/'/g,"\\'")}')">×</button></span>`
+  document.getElementById('settings-subjects-chips').innerHTML = subjects.map((s, i) =>
+    `<span class="chip">${s}<button class="chip-x" onclick="settingsRemoveSubject('${s.replace(/'/g, "\\'")}')">×</button></span>`
   ).join('');
 }
 
@@ -1299,7 +1301,7 @@ function settingsAddSubject() {
 
 function settingsRemoveSubject(sub) {
   const user = getObj(K.USER) || {};
-  user.subjects = (user.subjects||[]).filter(s => s !== sub);
+  user.subjects = (user.subjects || []).filter(s => s !== sub);
   set(K.USER, user);
   renderSettingsChips();
 }
@@ -1309,15 +1311,15 @@ function saveSettings() {
   user.name = document.getElementById('settings-name').value.trim() || user.name;
   user.leetcodeUsername = document.getElementById('settings-leetcode').value.trim();
   user.emailjs = {
-    pubKey:     document.getElementById('settings-ejs-pubkey').value.trim(),
-    serviceId:  document.getElementById('settings-ejs-service').value.trim(),
+    pubKey: document.getElementById('settings-ejs-pubkey').value.trim(),
+    serviceId: document.getElementById('settings-ejs-service').value.trim(),
     templateId: document.getElementById('settings-ejs-template').value.trim(),
-    toEmail:    document.getElementById('settings-ejs-email').value.trim(),
+    toEmail: document.getElementById('settings-ejs-email').value.trim(),
   };
   set(K.USER, user);
   // Init EmailJS if configured
   if (user.emailjs.pubKey) {
-    try { emailjs.init(user.emailjs.pubKey); } catch(e) {}
+    try { emailjs.init(user.emailjs.pubKey); } catch (e) { }
   }
   lcCache = null; // reset cache so LeetCode reloads with new username
   closeSettings();
@@ -1338,14 +1340,14 @@ function requestNotifPermission() {
   if (Notification.permission === 'default') {
     Notification.requestPermission();
   }
-  
+
   // Register service worker for push notifications
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/static/service-worker.js').catch((err) => {
       console.log('Service Worker registration failed:', err);
     });
   }
-  
+
   // Check for period reminders on load
   schedulePeriodNotifs();
 }
@@ -1360,7 +1362,7 @@ function scheduleDeadlineNotifs() {
     const daysLeft = daysBetween(todayStr, d.dueDate);
     const notifKey = `${d.id}_due`;
     if (!notified.includes(notifKey) && daysLeft >= 0 && daysLeft <= 2) {
-      const msg = daysLeft === 0 ? `"${d.title}" is due TODAY!` : `"${d.title}" is due in ${daysLeft} day${daysLeft>1?'s':''}`;
+      const msg = daysLeft === 0 ? `"${d.title}" is due TODAY!` : `"${d.title}" is due in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`;
       new Notification('Aria — Deadline Alert', { body: msg, icon: '/static/icon.png' });
       notified.push(notifKey);
       set(K.NOTIFIED, notified);
@@ -1378,7 +1380,7 @@ function scheduleDeadlineNotifs() {
       }
     }
   });
-  
+
   // Period reminders
   schedulePeriodNotifs();
 }
@@ -1388,10 +1390,10 @@ function schedulePeriodNotifs() {
   const notified = get(K.NOTIFIED, []);
   const ctx = calcPeriodContext();
   if (!ctx.nextPredicted) return;
-  
+
   const todayStr = today();
   const daysUntil = daysBetween(todayStr, ctx.nextPredicted);
-  
+
   // Notify 3 days before, 1 day before, and on the day
   const thresholds = [3, 1, 0];
   thresholds.forEach(threshold => {
@@ -1401,7 +1403,7 @@ function schedulePeriodNotifs() {
       if (threshold === 3) msg = `🌸 Your period is expected in 3 days. Get ready!`;
       else if (threshold === 1) msg = `🌸 Your period is expected tomorrow. Stay prepared!`;
       else msg = `🌸 Your period might start today or soon. Take it easy!`;
-      
+
       new Notification('Aria — Period Reminder', { body: msg, icon: '🌸' });
       notified.push(notifKey);
       set(K.NOTIFIED, notified);
@@ -1416,7 +1418,7 @@ function checkEmailReminders() {
   try {
     emailjs.init(user.emailjs.pubKey);
     scheduleEmailReminders();
-  } catch(e) {}
+  } catch (e) { }
 }
 
 function scheduleEmailReminders() {
@@ -1467,7 +1469,7 @@ function sendEmailReminder(ejs, subject, body) {
       subject: subject,
       message: body,
     });
-  } catch(e) { console.warn('EmailJS error:', e); }
+  } catch (e) { console.warn('EmailJS error:', e); }
 }
 
 // ===== INIT COMPLETION =====
