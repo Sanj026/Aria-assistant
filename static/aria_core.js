@@ -217,9 +217,10 @@ async function pullFromCloud() {
         localStorage.setItem(storageKey, JSON.stringify(result.data[storageKey]));
       });
       console.log("☁️ Data pulled from cloud");
-      // If we are in specific views, we might need to re-render, but usually startApp handles this
+      return true;
     }
   } catch (e) { console.error("Sync pull failed", e); }
+  return false;
 }
 
 function generateSyncKey() {
@@ -295,6 +296,25 @@ function renderObChips() {
 function obRemoveSubject(i) {
   obData.subjects.splice(i, 1);
   renderObChips();
+}
+
+function obShowSync() {
+  document.getElementById('ob-sync-row').classList.toggle('hidden');
+}
+
+async function obPerformSync() {
+  const key = document.getElementById('ob-sync-key').value.trim();
+  if (!key) return;
+  showToast('Connecting to cloud... ☁️', 'info');
+  localStorage.setItem(K.SYNC_KEY, JSON.stringify(key));
+  const success = await pullFromCloud();
+  if (success) {
+    showToast('Sync successful! Loading your data...', 'success');
+    setTimeout(() => location.reload(), 1500);
+  } else {
+    localStorage.removeItem(K.SYNC_KEY);
+    showToast('Invalid key or sync failed. Try again!', 'red');
+  }
 }
 
 async function obFinish() {
@@ -1400,8 +1420,9 @@ function saveSettings() {
   if (syncKey !== oldKey) {
     localStorage.setItem(K.SYNC_KEY, JSON.stringify(syncKey));
     if (syncKey) {
-      showToast('🔗 Sync key updated. Pulling data...', 'info');
-      initCloudSync(); // This will pull and start interval
+      showToast('🔗 Sync key updated. Syncing...', 'info');
+      initCloudSync(); // Pulls immediately
+      setTimeout(pushToCloud, 1000); // Also push local data immediately
     }
   }
   // Init EmailJS if configured

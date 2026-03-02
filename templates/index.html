@@ -38,6 +38,13 @@
         <input id="ob-name" class="modal-input" type="text" placeholder="Your name..." autocomplete="off"
           maxlength="30" />
         <button class="btn-primary" onclick="obNext(1)">Continue →</button>
+        <div class="mt-8 text-center">
+          <a href="#" class="onboard-skip-link" onclick="obShowSync()">Sync existing data from another device</a>
+        </div>
+        <div id="ob-sync-row" class="mt-8 hidden">
+          <input id="ob-sync-key" class="modal-input" type="password" placeholder="Enter Sync Key..." />
+          <button class="btn-secondary-sm mt-4 w-full" onclick="obPerformSync()">Connect & Sync</button>
+        </div>
       </div>
 
       <!-- Step 2: LeetCode -->
