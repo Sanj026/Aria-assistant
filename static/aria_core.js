@@ -309,8 +309,13 @@ async function obPerformSync() {
   localStorage.setItem(K.SYNC_KEY, JSON.stringify(key));
   const success = await pullFromCloud();
   if (success) {
-    showToast('Sync successful! Loading your data...', 'success');
-    setTimeout(() => location.reload(), 1500);
+    showToast('Sync successful! Welcome back! ✦', 'success');
+    // Important: After pull, we have the user and name. Just start the app!
+    setTimeout(() => {
+      document.getElementById('onboarding-modal').classList.add('hidden');
+      initCloudSync();
+      startApp();
+    }, 1000);
   } else {
     localStorage.removeItem(K.SYNC_KEY);
     showToast('Invalid key or sync failed. Try again!', 'red');
@@ -1421,8 +1426,11 @@ function saveSettings() {
     localStorage.setItem(K.SYNC_KEY, JSON.stringify(syncKey));
     if (syncKey) {
       showToast('🔗 Sync key updated. Syncing...', 'info');
-      initCloudSync(); // Pulls immediately
-      setTimeout(pushToCloud, 1000); // Also push local data immediately
+      initCloudSync();
+      setTimeout(() => {
+        console.log("🚀 Forcing initial cloud push...");
+        pushToCloud();
+      }, 800);
     }
   }
   // Init EmailJS if configured
