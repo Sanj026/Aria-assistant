@@ -238,3 +238,390 @@ RULES:
 12. For CYCLE PREDICTION: When user asks "when's my next period?" or "what's my cycle?" → offer GET_CYCLE_PREDICTION action
 13. CALENDAR REFLECTION: Ensure ALL date-related requests (reminders, deadlines, gym sessions, periods) use the correct date so they show up on the user's calendar.
 """
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({
+        "status": "online",
+        "client_ready": client is not None,
+        "api_key_set": api_key is not None,
+        "server_time": datetime.now().isoformat()
+    })
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        message = data.get('message', '')
+        context = data.get('context', {})
+        chat_history = data.get('chatHistory', [])
+
+        print(f"📩 Incoming /api/chat request: {len(message)} chars from {context.get('userName', 'unknown')}")
+        
+        if not client:
+            print("❌ Request failed: Client NOT initialized")
+            return jsonify({
+                "message": "⚠️ I'm missing my API key on Render. Please double check that GROK_API_KEY is added to your Environment Variables in the Render dashboard.",
+                "action": None
+            })
+
+        # Mock responses for Finance testing
+        user_msg = message.lower()
+        if "balance" in user_msg and "500" in user_msg:
+            return jsonify({
+                "message": "Got it! I've set your balance to $500.00.",
+                "action": {"type": "SET_BALANCE", "data": {"amount": 500}}
+            })
+        elif "groceries" in user_msg and "23" in user_msg:
+            return jsonify({
+                "message": "Ouch, groceries are expensive. I've logged the $23.00 expense for you!",
+                "action": {"type": "ADD_TRANSACTION", "data": {"amount": 23, "description": "groceries", "type": "expense"}}
+            })
+        elif "pizza" in user_msg and "splitwise" in user_msg and "15" in user_msg:
+            return jsonify({
+                "message": "Yum, pizza! I've added a $15.00 reminder for Splitwise.",
+                "action": {"type": "ADD_SPLITWISE", "data": {"amount": 15, "description": "pizza tonight"}}
+            })
+
+        system_prompt = build_system_prompt(context)
+
+        # Build conversation history
+        history_text = ""
+        for msg in chat_history[-20:]:
+            role = "User" if msg.get('role') == 'user' else "Aria"
+            history_text += f"\n{role}: {msg.get('content', '')}"
+
+        # Create the full prompt with history
+        full_prompt = f"{system_prompt}\n\n--- CONVERSATION HISTORY ---{history_text}\n\n--- NEW MESSAGE ---\nUser: {message}"
+
+        print(f"🤖 Calling Groq API (model: llama-3.3-70b-versatile)...")
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
+        )
+        text = response.choices[0].message.content
+        print(f"✅ Groq responded successfully ({len(text)} chars)")
+
+        if '```json' in text:
+            text = text.split('```json')[1].split('```')[0].strip()
+        elif '```' in text:
+            text = text.split('```')[1].split('```')[0].strip()
+
+        try:
+            result = json.loads(text)
+            if 'message' not in result:
+                result['message'] = text
+            if 'action' not in result:
+                result['action'] = None
+        except json.JSONDecodeError:
+            result = {"message": text, "action": None}
+
+        return jsonify(result)
+
+
+    except Exception as e:
+        print(f"🔥 UNHANDLED ERROR in /api/chat: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "message": f"Hmm, something went wrong on my end 😅 Try again? (Error: {str(e)[:120]})",
+            "action": None
+        }), 200
+
+
+@app.route('/api/leetcode', methods=['GET'])
+def leetcode_stats():
+    username = request.args.get('username', '').strip()
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+
+    query = """
+    query getUserProfile($username: String!) {
+        matchedUser(username: $username) {
+            username
+            submitStats: submitStatsGlobal {
+                acSubmissionNum {
+                    difficulty
+                    count
+                    submissions
+                }
+            }
+            profile {
+                ranking
+                starRating
+            }
+        }
+        allQuestionsCount {
+            difficulty
+            count
+        }
+    }
+    """
+
+    try:
+        resp = requests.post(
+            'https://leetcode.com/graphql',
+            json={'query': query, 'variables': {'username': username}},
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': f'https://leetcode.com/{username}/',
+                'Accept': 'application/json',
+                'Origin': 'https://leetcode.com',
+                'x-csrftoken': 'na'
+            },
+            timeout=10
+        )
+        return jsonify(resp.json())
+    except requests.exceptions.Timeout:
+        return jsonify({"error": "LeetCode API timed out. Try again!"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/quiz', methods=['POST'])
+def generate_quiz():
+    try:
+        data = request.json
+        quiz_type = data.get('quizType', 'mixed')
+        count = min(int(data.get('count', 5)), 10)
+        subject = data.get('subject', '')
+        context = data.get('context', {})
+        topics = context.get('topics', {})
+        
+        if not client:
+            return jsonify({"error": "⚠️ Groq API key not configured on Render. Please add GROK_API_KEY to Environment Variables."}), 500
+
+        if quiz_type == 'leetcode':
+            prompt = f"""Generate exactly {count} LeetCode-style coding interview questions.
+Mix difficulty: some easy, some medium.
+For each question:
+- Clear problem statement
+- Example input and output
+- Expected time/space complexity hint
+
+Format strictly as:
+Q1. [Title]
+[Problem description]
+Example: Input: X → Output: Y
+Complexity hint: O(?)
+
+Q2. [continue...]
+
+Return ONLY the questions, no answers."""
+
+        elif quiz_type == 'subject' and subject:
+            subject_data = topics.get(subject, {})
+            completed = [t.get('topic', '') for t in subject_data.get('completed', [])]
+            all_topics = subject_data.get('topics', [])
+            focus = completed if completed else (all_topics if all_topics else [subject])
+
+            prompt = f"""Generate exactly {count} quiz questions for the subject: {subject}.
+Focus on these topics: {', '.join(focus[:5]) if focus else subject}
+Mix question types: conceptual understanding, application, analysis.
+Make them thought-provoking but fair for a college student.
+
+Format strictly as:
+Q1. [Question text]
+
+Q2. [Question text]
+
+Return ONLY the questions, no answers."""
+
+        else:  # mixed
+            prompt = f"""Generate exactly {count} mixed study questions for a college CS student.
+Cover: data structures, algorithms, system design fundamentals, and CS concepts.
+Make them interesting and educational.
+
+Format strictly as:
+Q1. [Question text]
+
+Q2. [Question text]
+
+Return ONLY the questions, no answers."""
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        return jsonify({
+            "questions": response.choices[0].message.content,
+            "count": count,
+            "type": quiz_type,
+            "subject": subject
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sync/push', methods=['POST'])
+def api_sync_push():
+    """Push local data to Supabase."""
+    try:
+        data = request.json
+        sync_key = data.get('syncKey')
+        payload = data.get('payload') # Dict of { key: data }
+        
+        if not sync_key or not payload:
+            return jsonify({"error": "syncKey and payload required"}), 400
+            
+        result = save_user_data(sync_key, payload)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/sync/pull', methods=['GET'])
+def api_sync_pull():
+    """Pull remote data from Supabase."""
+    try:
+        sync_key = request.args.get('syncKey')
+        if not sync_key:
+            return jsonify({"error": "syncKey required"}), 400
+            
+        result = get_all_user_data(sync_key)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/period/log-start', methods=['POST'])
+def api_log_period_start():
+    """Log period start date."""
+    try:
+        data = request.json
+        user_id = data.get('userId', 'default_user')
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        notes = data.get('notes')
+        
+        result = log_period_start(user_id, date, notes)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/period/log-end', methods=['POST'])
+def api_log_period_end():
+    """Log period end date."""
+    try:
+        data = request.json
+        user_id = data.get('userId', 'default_user')
+        start_date = data.get('startDate')
+        end_date = data.get('endDate', datetime.now().strftime('%Y-%m-%d'))
+        
+        if not start_date:
+            return jsonify({"error": "startDate required"}), 400
+        
+        result = log_period_end(user_id, start_date, end_date)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/period/history', methods=['GET'])
+def api_period_history():
+    """Get period history for a user."""
+    try:
+        user_id = request.args.get('userId', 'default_user')
+        history = get_period_history(user_id)
+        return jsonify({"success": True, "data": history})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/period/predict', methods=['GET'])
+def api_predict_period():
+    """Get cycle stats and next period prediction."""
+    try:
+        user_id = request.args.get('userId', 'default_user')
+        stats = calculate_cycle_stats(user_id)
+        return jsonify({"success": True, "data": stats})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/period/phases', methods=['GET'])
+def api_period_phases():
+    """Get cycle phases for a date."""
+    try:
+        user_id = request.args.get('userId', 'default_user')
+        target_date = request.args.get('date')
+        
+        phases = predict_cycle_phases(user_id, target_date)
+        return jsonify({"success": True, "data": phases})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/list-models', methods=['GET'])
+def list_models():
+    """List available Grok models."""
+    if not client:
+        return jsonify({"status": "error", "message": "No API key configured"}), 400
+
+    try:
+        models = client.models.list()
+        model_names = [m.id for m in models]
+        return jsonify({
+            "status": "success",
+            "models": model_names
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)[:200]
+        }), 500
+
+
+@app.route('/api/test-key', methods=['GET'])
+def test_api_key():
+    """Test if the Grok API key is valid."""
+    if not client:
+        return jsonify({"status": "error", "message": "No API key configured"}), 400
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": "Say 'API key is working!' in exactly one sentence."}]
+        )
+        return jsonify({
+            "status": "success",
+            "message": "✅ Groq API key is valid!",
+            "response": response.choices[0].message.content
+        })
+    except Exception as e:
+        error_msg = str(e)
+        if "429" in error_msg:
+            return jsonify({
+                "status": "error",
+                "message": "❌ 429 QUOTA EXCEEDED — Check your xAI billing",
+                "error": error_msg[:200]
+            }), 429
+        elif "401" in error_msg or "invalid" in error_msg.lower():
+            return jsonify({
+                "status": "error",
+                "message": "❌ API Key is invalid or expired",
+                "error": error_msg[:200]
+            }), 401
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"❌ Error: {error_msg[:120]}",
+            }), 500
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
