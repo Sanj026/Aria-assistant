@@ -13,6 +13,7 @@ const K = {
   PERIOD: 'aria_period',
   PROGRESS: 'aria_progress',
   TOPICS: 'aria_topics',
+  STUDY: 'aria_study', // { subjects: { subName: { tasks: [] } } }
   CHAT: 'aria_chat',
   NOTIFIED: 'aria_notified',
   EMAILED: 'aria_emailed',
@@ -141,18 +142,13 @@ function buildContext() {
     userName: user.name || 'friend',
     subjects: user.subjects || [],
     leetcodeUsername: user.leetcodeUsername || '',
-    deadlines: get(K.DEADLINES, []).filter(d => d.status !== 'done').slice(0, 20),
-    topics: getObj(K.TOPICS) || {},
-    gym,
-    periodContext: periodCtx,
-    notes: get(K.NOTES, []).slice(0, 15),
-    quizHistory: get(K.QUIZ, []).slice(-10),
-    isPmsWeek: !!periodCtx.isPMS,
-    inQuiz: !!quizSession,
-    pendingDeadline: pendingDeadline || null,
+    deadlines: get(K.DEADLINES, []).filter(d => d.status !== 'done').slice(0, 15),
+    studyTasks: getObj(K.STUDY) || {}, // New study-focused context
+    gym: { currentStreak: gym.currentStreak }, // Leaner gym context
+    periodContext: { daysUntilNext: periodCtx.daysUntilNext }, // Leaner period context
+    notes: get(K.NOTES, []).slice(0, 10),
     today: today(),
     balance: finance.balance,
-    splitwiseReminders: finance.splitwise,
   };
 }
 
@@ -369,6 +365,7 @@ function switchView(view) {
   if (view === 'leetcode') renderLeetCodeView();
   if (view === 'notes') renderNotes();
   if (view === 'finance') renderFinanceView();
+  if (view === 'study') renderStudyView();
 }
 
 function toggleSidebar() {
@@ -562,6 +559,9 @@ function handleAction(action, userMsg) {
     case 'ADD_TRANSACTION': handleAddTransaction(d); break;
     case 'ADD_SPLITWISE': handleAddSplitwise(d); break;
     case 'COMPLETE_SPLITWISE': handleCompleteSplitwise(d); break;
+    case 'ADD_STUDY_TASK': handleAddStudyTask(d); break;
+    case 'REMOVE_STUDY_TASK': handleRemoveStudyTask(d); break;
+    case 'COMPLETE_STUDY_TASK': handleCompleteStudyTask(d); break;
   }
 }
 
@@ -762,6 +762,50 @@ function handleLogProgress(d) {
   set(K.PROGRESS, prog);
   showToast('Daily progress logged ✓', 'success');
   if (currentView === 'progress') renderProgress();
+}
+
+// ===== STUDY HUB ACTIONS =====
+function handleAddStudyTask(d) {
+  if (!d.subject) return;
+  const study = getObj(K.STUDY) || {};
+  if (!study[d.subject]) study[d.subject] = { tasks: [] };
+
+  const task = {
+    id: uid(),
+    name: d.task || 'Untitled Task',
+    startDate: d.startDate || '',
+    endDate: d.endDate || '',
+    status: 'pending'
+  };
+
+  study[d.subject].tasks.push(task);
+  set(K.STUDY, study);
+  showToast(`📚 Task added to ${d.subject}`, 'success');
+  if (currentView === 'study') renderStudyView();
+}
+
+function handleRemoveStudyTask(d) {
+  const study = getObj(K.STUDY) || {};
+  if (study[d.subject]) {
+    study[d.subject].tasks = study[d.subject].tasks.filter(t => t.id !== d.id);
+    set(K.STUDY, study);
+    showToast('Task removed', 'info');
+    if (currentView === 'study') renderStudyView();
+  }
+}
+
+function handleCompleteStudyTask(d) {
+  const study = getObj(K.STUDY) || {};
+  if (study[d.subject]) {
+    const task = study[d.subject].tasks.find(t => t.id === d.id);
+    if (task) {
+      task.status = 'done';
+      task.completedAt = today();
+      set(K.STUDY, study);
+      showToast('Task completed! 🎉', 'success');
+      if (currentView === 'study') renderStudyView();
+    }
+  }
 }
 
 // ===== SUBJECT ACTIONS =====
@@ -1120,12 +1164,11 @@ function renderProgress() {
 
 function showProgressTab(tab) {
   currentProgressTab = tab;
-  ['daily', 'topics', 'gym', 'cycle'].forEach(t => {
+  ['daily', 'gym', 'cycle'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
     document.getElementById(`tab-content-${t}`).classList.toggle('hidden', t !== tab);
   });
   if (tab === 'daily') renderDailyLog();
-  if (tab === 'topics') renderTopicsTab();
   if (tab === 'gym') renderGymTab();
   if (tab === 'cycle') renderCycleTab();
 }
@@ -1290,6 +1333,128 @@ function addMilestoneManual(subject, id) {
   renderProgress();
 }
 
+
+// ===== STUDY HUB VIEW =====
+function renderStudyView() {
+  const el = document.getElementById('study-content');
+  const study = getObj(K.STUDY) || {};
+  const subjects = Object.keys(study);
+
+  let html = `
+    <div class="progress-hub-header" style="margin-bottom:24px;">
+      <div class="manual-subject-add" style="display:flex; gap:10px;">
+        <input type="text" id="manual-study-subject-input" class="topic-mini-input" style="flex:1;" placeholder="New study subject (e.g. Data Mining)">
+        <button class="btn-mini" onclick="addStudySubjectManual()">Add Subject</button>
+      </div>
+    </div>
+  `;
+
+  if (!subjects.length) {
+    el.innerHTML = html + `<div class="empty-state"><p>No study subjects yet!</p><p class="empty-sub">Add one above or tell Aria your deadlines! 📚</p></div>`;
+    return;
+  }
+
+  el.innerHTML = html + subjects.map(sub => {
+    const tasks = study[sub].tasks || [];
+    const completed = tasks.filter(t => t.status === 'done').length;
+    const pct = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
+    const color = pct >= 70 ? 'bar-green' : pct >= 40 ? 'bar-yellow' : 'bar-purple';
+    const subId = sub.replace(/\s+/g, '-');
+
+    return `
+      <div class="progress-card">
+        <div class="progress-card-header">
+          <div class="progress-card-title-wrap">
+            <div class="progress-card-title">📚 ${escapeHtml(sub)}</div>
+            <button class="btn-icon-small" onclick="removeStudySubjectManual('${sub.replace(/'/g, "\\'")}')">×</button>
+          </div>
+          <span class="stat-badge">${completed}/${tasks.length}</span>
+        </div>
+
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-label"><span>Subject Progress</span><span>${pct}%</span></div>
+          <div class="progress-bar-track"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div>
+        </div>
+
+        <div class="topics-list">
+          ${tasks.length ? tasks.map(t => `
+            <div class="topic-item">
+              <div class="topic-main" onclick="handleAction({type:'COMPLETE_STUDY_TASK', data:{subject:'${sub.replace(/'/g, "\\'")}', id:'${t.id}'}})">
+                <span class="topic-dot ${t.status === 'done' ? 'done' : ''}">${t.status === 'done' ? '✓' : '○'}</span>
+                <div>
+                  <div class="topic-name ${t.status === 'done' ? 'done' : ''}">${escapeHtml(t.name)}</div>
+                  ${t.startDate || t.endDate ? `
+                    <div class="milestone-date" style="font-size:10px; opacity:0.7;">
+                      ${t.startDate ? fmtDate(t.startDate) : ''} ${t.startDate && t.endDate ? '—' : ''} ${t.endDate ? fmtDate(t.endDate) : ''}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              <button class="topic-delete-btn" onclick="handleAction({type:'REMOVE_STUDY_TASK', data:{subject:'${sub.replace(/'/g, "\\'")}', id:'${t.id}'}})">×</button>
+            </div>
+          `).join('') : '<p style="color:var(--text3);font-size:12px;padding:10px 0;">No tasks yet</p>'}
+        </div>
+
+        <div class="subject-card-controls" style="margin-top:15px; border-top:1px dashed var(--border); padding-top:10px;">
+           <button class="btn-mini btn-outline" style="width:100%;" onclick="toggleStudyTaskForm('${subId}')">＋ Add Manual Task</button>
+           
+           <div id="study-task-form-${subId}" class="hidden" style="margin-top:10px; background:var(--bg4); padding:10px; border-radius:8px; border:1px solid var(--border);">
+             <input type="text" id="st-task-${subId}" class="topic-mini-input" style="width:100%; margin-bottom:8px;" placeholder="Task Name (e.g. Report)">
+             <div style="display:flex; gap:8px; margin-bottom:8px;">
+               <div style="flex:1;">
+                 <label style="font-size:10px; color:var(--text3); display:block;">Start</label>
+                 <input type="date" id="st-start-${subId}" class="topic-mini-input" style="width:100%;">
+               </div>
+               <div style="flex:1;">
+                 <label style="font-size:10px; color:var(--text3); display:block;">End</label>
+                 <input type="date" id="st-end-${subId}" class="topic-mini-input" style="width:100%;">
+               </div>
+             </div>
+             <button class="btn-mini" style="width:100%;" onclick="addStudyTaskManual('${sub.replace(/'/g, "\\'")}', '${subId}')">Save Task</button>
+           </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addStudySubjectManual() {
+  const val = document.getElementById('manual-study-subject-input').value.trim();
+  if (!val) return;
+  const study = getObj(K.STUDY) || {};
+  if (!study[val]) {
+    study[val] = { tasks: [] };
+    set(K.STUDY, study);
+    showToast(`Subject added: ${val}`, 'success');
+    renderStudyView();
+  }
+}
+
+function removeStudySubjectManual(sub) {
+  if (!confirm(`Remove "${sub}" and all its tasks?`)) return;
+  const study = getObj(K.STUDY) || {};
+  delete study[sub];
+  set(K.STUDY, study);
+  showToast('Subject removed', 'info');
+  renderStudyView();
+}
+
+function toggleStudyTaskForm(id) {
+  const el = document.getElementById(`study-task-form-${id}`);
+  el.classList.toggle('hidden');
+}
+
+function addStudyTaskManual(subject, id) {
+  const task = document.getElementById(`st-task-${id}`).value.trim();
+  const start = document.getElementById(`st-start-${id}`).value;
+  const end = document.getElementById(`st-end-${id}`).value;
+  if (!task) return showToast('Task name is required', 'info');
+  handleAction({
+    type: 'ADD_STUDY_TASK',
+    data: { subject, task, startDate: start, endDate: end }
+  });
+  renderStudyView();
+}
 
 function renderGymTab() {
   const el = document.getElementById('tab-content-gym');

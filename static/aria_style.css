@@ -2333,3 +2333,27 @@ p {
 .hidden {
   display: none !important;
 }
+
+/* Study Hub Specific Styles */
+.study-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 100px;
+}
+
+.milestone-date {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.2px;
+}
+
+.subject-card-controls .btn-outline {
+  font-weight: 500;
+  font-size: 13px;
+  padding: 10px;
+  transition: all 0.2s ease;
+}
+
+.subject-card-controls .btn-outline:active {
+  transform: scale(0.98);
+}

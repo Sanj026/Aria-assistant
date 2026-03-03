@@ -190,12 +190,15 @@ LOG_PERIOD_END:
 GET_CYCLE_PREDICTION:
   data: {{ "action": "predict" }}
 
-ADD_TOPIC:
-  data: {{ "subject": "str", "topics": ["topic1", "topic2", ...] }}
-  RULE: Always batch ALL topics mentioned by the user into a single action.
+ADD_STUDY_TASK:
+  data: {{ "subject": "str", "task": "str", "startDate": "YYYY-MM-DD|null", "endDate": "YYYY-MM-DD|null" }}
+  RULE: If user mentions a sub-task/report/deadline for a subject, use this.
 
-COMPLETE_TOPIC:
-  data: {{ "subject": "str", "topic": "str" }}
+COMPLETE_STUDY_TASK:
+  data: {{ "subject": "str", "id": "str" }}
+
+REMOVE_STUDY_TASK:
+  data: {{ "subject": "str", "id": "str" }}
 
 LOG_DAILY_PROGRESS:
   data: {{ "summary": "str", "date": "YYYY-MM-DD" }}
@@ -236,13 +239,13 @@ RULES:
 7. If the user marks a deadline complete, find its ID from the deadlines list and use COMPLETE_DEADLINE
 8. For Finance: parse implicit money updates, e.g. "I spent $20 on groceries" triggers ADD_TRANSACTION. Include the date if specified.
 9. If user says they added something to Splitwise, find it in Pending Splitwise Items and trigger COMPLETE_SPLITWISE
-10. If the user mentions multiple topics for multiple subjects, or multiple different tasks (e.g. log gym AND add a deadline), use the "actions" array format to send ALL actions at once.
-11. PROACTIVE GOAL TRACKING: Look at deadlines in CURRENT USER DATA. If `startDate` < {today} < `dueDate` and midwayChecked is false, proactively ask the user about their progress on that specific subject/deadline.
-12. For PERIOD TRACKING: When user says "my period started on [date]" → LOG_PERIOD_START with the date
-13. For PERIOD TRACKING: When user says "period ended" or "period ended on [date]" → LOG_PERIOD_END with start date and end date
-14. For CYCLE PREDICTION: When user asks "when's my next period?" or "what's my cycle?" → offer GET_CYCLE_PREDICTION action
-15. CALENDAR REFLECTION: Ensure ALL date-related requests (reminders, deadlines, gym sessions, periods) use the correct date so they show up on the user's calendar.
-16. SUBJECT AUTOMATION: When adding a deadline or topic, the system automatically adds the subject to the user's subjects list. ALWAYS mention the subject name in your message.
+10. STUDY HUB: If the user mentions multiple tasks for multiple subjects (e.g. Data Mining: Report, March 16), trigger ADD_STUDY_TASK for each. ALWAYS parse start and end dates if provided.
+11. PROACTIVE STUDY CHECK-IN: If `startDate` < {today} < `endDate` for a task in STUDY HUB, ask about progress.
+12. For PERIOD TRACKING: Use LOG_PERIOD_START/END actions.
+13. CYCLE PREDICTION: Use GET_CYCLE_PREDICTION action.
+14. CALENDAR: Ensure ALL dates use YYYY-MM-DD for consistency.
+15. SUBJECT AUTOMATION: Adding a study task automatically creates the subject card.
+16. PERFORMANCE: Keep messages concise and direct. Do not repeat user data unnecessarily.
 """
 @app.route('/')
 def index():

@@ -169,6 +169,10 @@
           <span class="nav-icon">💰</span>
           <span class="nav-label">Finance</span>
         </li>
+        <li class="nav-item" id="nav-study" onclick="switchView('study')" role="button" tabindex="0">
+          <span class="nav-icon">📚</span>
+          <span class="nav-label">Study</span>
+        </li>
         <li class="nav-item" id="nav-notes" onclick="switchView('notes')" role="button" tabindex="0">
           <span class="nav-icon">📝</span>
           <span class="nav-label">Notes</span>
@@ -255,12 +259,10 @@
         </div>
         <div class="tab-bar">
           <button class="tab-btn active" id="tab-daily" onclick="showProgressTab('daily')">📅 Daily Log</button>
-          <button class="tab-btn" id="tab-topics" onclick="showProgressTab('topics')">📚 Topics</button>
           <button class="tab-btn" id="tab-gym" onclick="showProgressTab('gym')">💪 Gym</button>
           <button class="tab-btn" id="tab-cycle" onclick="showProgressTab('cycle')">🌸 Cycle</button>
         </div>
         <div id="tab-content-daily" class="tab-content"></div>
-        <div id="tab-content-topics" class="tab-content hidden"></div>
         <div id="tab-content-gym" class="tab-content hidden"></div>
         <div id="tab-content-cycle" class="tab-content hidden"></div>
       </section>
@@ -302,6 +304,16 @@
           <h1 class="view-title">Finance 💰</h1>
         </div>
         <div id="finance-content" class="finance-content">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- ====== STUDY VIEW ====== -->
+      <section id="view-study" class="view hidden">
+        <div class="view-topbar">
+          <h1 class="view-title">Study Hub 📚</h1>
+        </div>
+        <div id="study-content" class="study-content">
           <!-- Rendered via JS -->
         </div>
       </section>
