@@ -1153,7 +1153,10 @@ function renderTopicsTab() {
       return `
             <div class="milestone-entry">
               <div class="milestone-info">
-                <span class="milestone-name">${escapeHtml(d.title)}</span>
+                <div class="milestone-name-row">
+                  <span class="milestone-name">${escapeHtml(d.title)}</span>
+                  <button class="btn-icon-mini" onclick="handleAction({type:'DELETE_DEADLINE', data:{id:'${d.id}'}})" title="Delete Milestone">×</button>
+                </div>
                 <span class="milestone-date ${isUrgent ? 'urgent' : ''}">${dateText} (${daysLeft}d)</span>
               </div>
               <div class="milestone-type">${d.type || 'assignment'}</div>
@@ -1166,7 +1169,10 @@ function renderTopicsTab() {
     return `
       <div class="progress-card">
         <div class="progress-card-header">
-          <div class="progress-card-title">📚 ${escapeHtml(sub)}</div>
+          <div class="progress-card-title-wrap">
+            <div class="progress-card-title">📚 ${escapeHtml(sub)}</div>
+            <button class="btn-icon-small" onclick="handleAction({type:'REMOVE_SUBJECT', data:{subject:'${sub.replace(/'/g, "\\'")}'}})" title="Remove Subject">×</button>
+          </div>
           <span class="stat-badge">${completedSet.size}/${allTopics.length}</span>
         </div>
         <div class="progress-bar-wrap">
