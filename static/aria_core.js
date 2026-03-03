@@ -504,7 +504,12 @@ async function sendMessage() {
     const msg = data.message || 'Sorry, I had a brain glitch. Try again?';
     addAriaMessage(msg);
 
-    if (data.action) handleAction(data.action, text);
+    // Support both single action and multiple actions
+    if (data.action) {
+      handleAction(data.action, text);
+    } else if (Array.isArray(data.actions)) {
+      data.actions.forEach(act => handleAction(act, text));
+    }
 
   } catch (err) {
     console.error("Chat error:", err);

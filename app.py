@@ -149,9 +149,11 @@ You MUST ALWAYS respond with ONLY valid JSON. No text before or after. No markdo
 
 {{"message": "Your natural language response", "action": null}}
 
-OR with an action:
-
 {{"message": "Your natural language response", "action": {{"type": "ACTION_TYPE", "data": {{}}}}}}
+
+OR with multiple actions:
+
+{{"message": "Your natural language response", "actions": [ {{"type": "ACTION_TYPE", "data": {{}}}}, {{"type": "ACTION_TYPE", "data": {{}}}} ]}}
 
 AVAILABLE ACTIONS AND DATA SCHEMAS:
 
@@ -234,6 +236,7 @@ RULES:
 7. If the user marks a deadline complete, find its ID from the deadlines list and use COMPLETE_DEADLINE
 8. For Finance: parse implicit money updates, e.g. "I spent $20 on groceries" triggers ADD_TRANSACTION. Include the date if specified.
 9. If user says they added something to Splitwise, find it in Pending Splitwise Items and trigger COMPLETE_SPLITWISE
+10. If the user mentions multiple topics for multiple subjects, or multiple different tasks (e.g. log gym AND add a deadline), use the "actions" array format to send ALL actions at once.
 10. For PERIOD TRACKING: When user says "my period started on [date]" → LOG_PERIOD_START with the date
 11. For PERIOD TRACKING: When user says "period ended" or "period ended on [date]" → LOG_PERIOD_END with start date and end date
 12. For CYCLE PREDICTION: When user asks "when's my next period?" or "what's my cycle?" → offer GET_CYCLE_PREDICTION action
