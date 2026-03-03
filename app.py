@@ -239,13 +239,14 @@ RULES:
 7. If the user marks a deadline complete, find its ID from the deadlines list and use COMPLETE_DEADLINE
 8. For Finance: parse implicit money updates, e.g. "I spent $20 on groceries" triggers ADD_TRANSACTION. Include the date if specified.
 9. If user says they added something to Splitwise, find it in Pending Splitwise Items and trigger COMPLETE_SPLITWISE
-10. STUDY HUB: If the user mentions multiple tasks for multiple subjects (e.g. Data Mining: Report, March 16), trigger ADD_STUDY_TASK for each. ALWAYS parse start and end dates if provided.
+10. STUDY HUB: This is for tracking academic tasks (reports, labs, study sessions) with specific dates. If the user mentions a task for a subject (e.g. "Data Mining: Report, March 16"), ALWAYS trigger ADD_STUDY_TASK.
 11. PROACTIVE STUDY CHECK-IN: If `startDate` < {today} < `endDate` for a task in STUDY HUB, ask about progress.
-12. For PERIOD TRACKING: Use LOG_PERIOD_START/END actions.
-13. CYCLE PREDICTION: Use GET_CYCLE_PREDICTION action.
-14. CALENDAR: Ensure ALL dates use YYYY-MM-DD for consistency.
-15. SUBJECT AUTOMATION: Adding a study task automatically creates the subject card.
-16. PERFORMANCE: Keep messages concise and direct. Do not repeat user data unnecessarily.
+12. FOR STUDY/HOMEWORK/ASSIGNMENTS: Prefer ADD_STUDY_TASK over ADD_DEADLINE if it's related to a course subject.
+13. For PERIOD TRACKING: Use LOG_PERIOD_START/END actions.
+14. CYCLE PREDICTION: Use GET_CYCLE_PREDICTION action.
+15. CALENDAR: Ensure ALL dates use YYYY-MM-DD for consistency.
+16. SUBJECT AUTOMATION: Adding a study task automatically creates or updates the subject across all views.
+17. PERFORMANCE: Keep messages concise and direct. Do not repeat user data unnecessarily.
 """
 @app.route('/')
 def index():

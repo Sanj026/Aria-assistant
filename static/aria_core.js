@@ -53,10 +53,10 @@ function showToast(msg, type = 'info') {
   setTimeout(() => t.remove(), 3200);
 }
 
-function autoResize(el) {
+window.autoResize = function (el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
+};
 
 // ===== DEADLINE STATUS =====
 function deadlineStatus(d) {
@@ -248,7 +248,13 @@ function startApp() {
 // ===== ONBOARDING =====
 const obData = { name: '', leetcode: '', subjects: [] };
 
-function obNext(step) {
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.saveSettings = saveSettings;
+window.confirmClearData = confirmClearData;
+window.handleAddSubject = handleAddSubject;
+
+window.obNext = function (step) {
   if (step === 1) {
     const name = document.getElementById('ob-name').value.trim();
     if (!name) { document.getElementById('ob-name').focus(); return; }
@@ -264,7 +270,7 @@ function obNext(step) {
   }
 }
 
-function obSkip(step) {
+window.obSkip = function (step) {
   if (step === 2) {
     document.getElementById('ob-step-2').classList.add('hidden');
     document.getElementById('ob-step-3').classList.remove('hidden');
@@ -275,7 +281,10 @@ function obAddSubject() {
   const inp = document.getElementById('ob-subject-input');
   const val = inp.value.trim();
   if (!val || obData.subjects.includes(val)) { inp.value = ''; return; }
+
+  handleAddSubject({ subject: val, silent: true });
   obData.subjects.push(val);
+
   inp.value = '';
   renderObChips();
   inp.focus();
@@ -293,11 +302,11 @@ function obRemoveSubject(i) {
   renderObChips();
 }
 
-function obShowSync() {
+window.obShowSync = function () {
   document.getElementById('ob-sync-row').classList.toggle('hidden');
 }
 
-async function obPerformSync() {
+window.obPerformSync = async function () {
   const key = document.getElementById('ob-sync-key').value.trim();
   if (!key) return;
   showToast('Connecting to cloud... ☁️', 'info');
@@ -317,7 +326,7 @@ async function obPerformSync() {
   }
 }
 
-async function obFinish() {
+window.obFinish = async function () {
   set(K.USER, { name: obData.name, leetcodeUsername: obData.leetcode, subjects: obData.subjects, emailjs: {} });
   document.getElementById('ob-step-3').classList.add('hidden');
   document.getElementById('ob-step-4').classList.remove('hidden');
@@ -346,7 +355,7 @@ async function obFinish() {
 }
 
 // ===== NAVIGATION =====
-function switchView(view) {
+window.switchView = function (view) {
   if (currentView === view) { closeSidebar(); return; }
   document.getElementById(`view-${currentView}`).classList.remove('active');
   document.getElementById(`view-${currentView}`).classList.add('hidden');
@@ -449,17 +458,17 @@ function hideTyping() {
   if (el) el.remove();
 }
 
-function handleChatKeydown(e) {
+window.handleChatKeydown = function (e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-}
+};
 
-function quickSend(text) {
+window.quickSend = function (text) {
   const inp = document.getElementById('chat-input');
   inp.value = text;
   sendMessage();
 }
 
-async function sendMessage() {
+window.sendMessage = async function () {
   if (isSending) return;
   const inp = document.getElementById('chat-input');
   const text = inp.value.trim();
@@ -521,11 +530,11 @@ async function sendMessage() {
   }
 }
 
-function showDeadlinesSummary() {
+window.showDeadlinesSummary = function () {
   quickSend('list all my current deadlines');
 }
 
-function showTodayFocus() {
+window.showTodayFocus = function () {
   quickSend('what should I focus on today');
 }
 
@@ -535,7 +544,7 @@ function showTodayFocus() {
    ===================================================== */
 
 // ===== ACTION HANDLER ROUTER =====
-function handleAction(action, userMsg) {
+window.handleAction = function (action, userMsg) {
   if (!action || !action.type) return;
   const d = action.data || {};
   switch (action.type) {
@@ -728,7 +737,7 @@ function handleCompleteTopic(d) {
   if (currentView === 'progress') renderProgress();
 }
 
-function addTopicManual(subject) {
+window.addTopicManual = function (subject) {
   const input = document.getElementById(`add-topic-input-${subject.replace(/\s+/g, '-')}`);
   const val = input.value.trim();
   if (!val) return;
@@ -736,7 +745,7 @@ function addTopicManual(subject) {
   input.value = '';
 }
 
-function deleteTopicManual(subject, topic) {
+window.deleteTopicManual = function (subject, topic) {
   if (!confirm(`Are you sure you want to delete the topic "${topic}"?`)) return;
   const topics = getObj(K.TOPICS) || {};
   if (!topics[subject]) return;
@@ -780,6 +789,10 @@ function handleAddStudyTask(d) {
 
   study[d.subject].tasks.push(task);
   set(K.STUDY, study);
+
+  // Unified subject management: ensure it's in user.subjects too
+  handleAddSubject({ subject: d.subject, silent: true });
+
   showToast(`📚 Task added to ${d.subject}`, 'success');
   if (currentView === 'study') renderStudyView();
 }
@@ -814,13 +827,30 @@ function handleAddSubject(d) {
   const user = getObj(K.USER) || {};
   if (!user.subjects) user.subjects = [];
 
-  const subjects = new Set(user.subjects.map(s => s.toLowerCase()));
-  if (!subjects.has(d.subject.toLowerCase())) {
+  const lowerSub = d.subject.toLowerCase();
+  const existsInUser = user.subjects.some(s => s.toLowerCase() === lowerSub);
+  let changed = false;
+
+  if (!existsInUser) {
     user.subjects.push(d.subject);
     set(K.USER, user);
+    changed = true;
+  }
+
+  // Also ensure it exists in Study Hub (K.STUDY)
+  const study = getObj(K.STUDY) || {};
+  const actualStudyKey = Object.keys(study).find(k => k.toLowerCase() === lowerSub);
+  if (!actualStudyKey) {
+    study[d.subject] = { tasks: [] };
+    set(K.STUDY, study);
+    changed = true;
+  }
+
+  if (changed) {
     if (!d.silent) showToast(`📚 Subject added: ${d.subject}`, 'success');
     pushToCloud();
     if (currentView === 'progress') renderProgress();
+    if (currentView === 'study') renderStudyView();
   }
 }
 
@@ -994,21 +1024,21 @@ function updateCalPeriodLabel() {
   }
 }
 
-function calPrev() {
+window.calPrev = function () {
   if (calendarMode === 'month') { calendarDate.setMonth(calendarDate.getMonth() - 1); }
   else { calendarDate.setDate(calendarDate.getDate() - 7); }
   calendarDate = new Date(calendarDate);
   renderCalendar();
 }
 
-function calNext() {
+window.calNext = function () {
   if (calendarMode === 'month') { calendarDate.setMonth(calendarDate.getMonth() + 1); }
   else { calendarDate.setDate(calendarDate.getDate() + 7); }
   calendarDate = new Date(calendarDate);
   renderCalendar();
 }
 
-function toggleCalendarMode() {
+window.toggleCalendarMode = function () {
   calendarMode = calendarMode === 'month' ? 'week' : 'month';
   renderCalendar();
 }
@@ -1132,7 +1162,7 @@ function renderWeekView() {
   grid.innerHTML = html;
 }
 
-function showDayDetail(dateStr) {
+window.showDayDetail = function (dateStr) {
   const panel = document.getElementById('calendar-day-detail');
   const entries = entriesForDate(dateStr);
   if (!entries.length) { panel.classList.add('hidden'); return; }
@@ -1162,7 +1192,7 @@ function renderProgress() {
   showProgressTab(currentProgressTab);
 }
 
-function showProgressTab(tab) {
+window.showProgressTab = function (tab) {
   currentProgressTab = tab;
   ['daily', 'gym', 'cycle'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
@@ -1315,12 +1345,12 @@ function renderTopicsTab() {
   }).join('');
 }
 
-function toggleMilestoneForm(id) {
+window.toggleMilestoneForm = function (id) {
   const el = document.getElementById(`milestone-form-${id}`);
   el.classList.toggle('hidden');
 }
 
-function addMilestoneManual(subject, id) {
+window.addMilestoneManual = function (subject, id) {
   const title = document.getElementById(`ms-title-${id}`).value.trim();
   const start = document.getElementById(`ms-start-${id}`).value;
   const due = document.getElementById(`ms-due-${id}`).value;
@@ -1417,34 +1447,32 @@ function renderStudyView() {
     `;
   }).join('');
 }
+window.renderStudyView = renderStudyView;
 
-function addStudySubjectManual() {
-  const val = document.getElementById('manual-study-subject-input').value.trim();
+window.addStudySubjectManual = function () {
+  const el = document.getElementById('manual-study-subject-input');
+  const val = el.value.trim();
   if (!val) return;
-  const study = getObj(K.STUDY) || {};
-  if (!study[val]) {
-    study[val] = { tasks: [] };
-    set(K.STUDY, study);
-    showToast(`Subject added: ${val}`, 'success');
-    renderStudyView();
-  }
-}
 
-function removeStudySubjectManual(sub) {
+  handleAddSubject({ subject: val });
+  el.value = '';
+};
+
+window.removeStudySubjectManual = function (sub) {
   if (!confirm(`Remove "${sub}" and all its tasks?`)) return;
   const study = getObj(K.STUDY) || {};
   delete study[sub];
   set(K.STUDY, study);
   showToast('Subject removed', 'info');
   renderStudyView();
-}
+};
 
-function toggleStudyTaskForm(id) {
+window.toggleStudyTaskForm = function (id) {
   const el = document.getElementById(`study-task-form-${id}`);
   el.classList.toggle('hidden');
-}
+};
 
-function addStudyTaskManual(subject, id) {
+window.addStudyTaskManual = function (subject, id) {
   const task = document.getElementById(`st-task-${id}`).value.trim();
   const start = document.getElementById(`st-start-${id}`).value;
   const end = document.getElementById(`st-end-${id}`).value;
@@ -1454,7 +1482,7 @@ function addStudyTaskManual(subject, id) {
     data: { subject, task, startDate: start, endDate: end }
   });
   renderStudyView();
-}
+};
 
 function renderGymTab() {
   const el = document.getElementById('tab-content-gym');
@@ -1763,9 +1791,9 @@ function settingsAddSubject() {
   const inp = document.getElementById('settings-subject-input');
   const val = inp.value.trim();
   if (!val) return;
-  const user = getObj(K.USER) || {};
-  if (!user.subjects) user.subjects = [];
-  if (!user.subjects.includes(val)) { user.subjects.push(val); set(K.USER, user); }
+
+  handleAddSubject({ subject: val });
+
   inp.value = '';
   renderSettingsChips();
 }

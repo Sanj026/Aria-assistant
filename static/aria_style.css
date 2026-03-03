@@ -1398,6 +1398,17 @@ p {
   gap: 16px;
 }
 
+.study-content,
+.finance-content,
+.leetcode-content,
+.notes-list,
+.tab-content {
+  flex: 1;
+  overflow-y: auto !important;
+  padding: 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
 .lc-placeholder,
 .empty-state {
   display: flex;
@@ -2247,6 +2258,7 @@ p {
   color: var(--text3);
   font-weight: 500;
 }
+
 /* Icon Buttons & Wraps */
 .progress-card-title-wrap {
   display: flex;
