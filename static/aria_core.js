@@ -76,8 +76,7 @@ function deadlineColor(d) {
   const s = deadlineStatus(d);
   if (s === 'done') return 'green';
   if (s === 'overdue' || s === 'urgent') return 'red';
-  if (s === 'soon') return 'yellow';
-  return 'green';
+  return 'yellow';
 }
 
 // ===== GYM STREAK CALC =====
@@ -688,13 +687,19 @@ function handlePeriodEnd(d) {
 
 // ===== TOPIC ACTIONS =====
 function handleAddTopic(d) {
+  if (!d.subject || d.subject === 'undefined') return;
   const topics = getObj(K.TOPICS) || {};
   if (!topics[d.subject]) topics[d.subject] = { topics: [], completed: [] };
   const existing = new Set(topics[d.subject].topics);
-  (d.topics || []).forEach(t => existing.add(t));
+  const newTopics = Array.isArray(d.topics) ? d.topics : (d.topic ? [d.topic] : []);
+  newTopics.forEach(t => {
+    if (t) existing.add(t);
+  });
   topics[d.subject].topics = [...existing];
+  // Clean up any "undefined" keys that might have slipped in
+  delete topics['undefined'];
   set(K.TOPICS, topics);
-  showToast(`📚 Topics added for ${d.subject}`, 'success');
+  showToast(`📚 Topics updated for ${d.subject}`, 'success');
   if (currentView === 'progress') renderProgress();
 }
 
@@ -706,6 +711,27 @@ function handleCompleteTopic(d) {
   set(K.TOPICS, topics);
   showToast(`✅ "${d.topic}" completed!`, 'success');
   if (currentView === 'progress') renderProgress();
+}
+
+function addTopicManual(subject) {
+  const input = document.getElementById(`add-topic-input-${subject.replace(/\s+/g, '-')}`);
+  const val = input.value.trim();
+  if (!val) return;
+  handleAddTopic({ subject, topics: [val] });
+  input.value = '';
+}
+
+function deleteTopicManual(subject, topic) {
+  if (!confirm(`Are you sure you want to delete the topic "${topic}"?`)) return;
+  const topics = getObj(K.TOPICS) || {};
+  if (!topics[subject]) return;
+
+  topics[subject].topics = topics[subject].topics.filter(t => t !== topic);
+  topics[subject].completed = topics[subject].completed.filter(c => c.topic !== topic);
+
+  set(K.TOPICS, topics);
+  showToast('Topic deleted', 'info');
+  renderProgress();
 }
 
 // ===== PROGRESS LOG =====
@@ -1080,6 +1106,7 @@ function renderTopicsTab() {
   }
 
   el.innerHTML = subjects.map(sub => {
+    if (!sub || sub === 'undefined') return '';
     const data = topics[sub];
     const allTopics = data.topics || [];
     const completed = data.completed || [];
@@ -1093,13 +1120,19 @@ function renderTopicsTab() {
     const pct = allTopics.length ? Math.round((completedSet.size / allTopics.length) * 100) : 0;
     const color = pct >= 70 ? 'bar-green' : pct >= 40 ? 'bar-yellow' : 'bar-purple';
 
+    // Subject ID for element references
+    const subId = sub.replace(/\s+/g, '-');
+
     const topicList = allTopics.map(t => {
       const done = completedSet.has(t);
       const info = done ? completed.find(c => c.topic === t) : null;
       return `<div class="topic-item">
-        <span class="topic-dot ${done ? 'done' : ''}">${done ? '✓' : '○'}</span>
-        <span class="topic-name ${done ? 'done' : ''}">${escapeHtml(t)}</span>
-        ${info ? `<span class="topic-date">${fmtDate(info.date)}</span>` : ''}
+        <div class="topic-main" onclick="handleAction({type:'COMPLETE_TOPIC', data:{subject:'${sub.replace(/'/g, "\\'")}', topic:'${t.replace(/'/g, "\\'")}'}})">
+          <span class="topic-dot ${done ? 'done' : ''}">${done ? '✓' : '○'}</span>
+          <span class="topic-name ${done ? 'done' : ''}">${escapeHtml(t)}</span>
+          ${info ? `<span class="topic-date">${fmtDate(info.date)}</span>` : ''}
+        </div>
+        <button class="topic-delete-btn" onclick="event.stopPropagation(); deleteTopicManual('${sub.replace(/'/g, "\\'")}', '${t.replace(/'/g, "\\'")}')">×</button>
       </div>`;
     }).join('');
 
@@ -1109,11 +1142,14 @@ function renderTopicsTab() {
         ${subDeadlines.map(d => {
       const daysLeft = daysBetween(today(), d.dueDate);
       const isUrgent = daysLeft <= 3;
+      const dateText = d.startDate
+        ? `<span class="milestone-dates">${fmtDate(d.startDate)} — ${fmtDate(d.dueDate)}</span>`
+        : `<span>${fmtDate(d.dueDate)}</span>`;
       return `
             <div class="milestone-entry">
               <div class="milestone-info">
                 <span class="milestone-name">${escapeHtml(d.title)}</span>
-                <span class="milestone-date ${isUrgent ? 'urgent' : ''}">${fmtDate(d.dueDate)} (${daysLeft}d)</span>
+                <span class="milestone-date ${isUrgent ? 'urgent' : ''}">${dateText} (${daysLeft}d)</span>
               </div>
               <div class="milestone-type">${d.type || 'assignment'}</div>
             </div>
@@ -1135,6 +1171,12 @@ function renderTopicsTab() {
         <div class="topics-list">
           ${topicList || '<p style="color:var(--text3);font-size:13px;padding:10px 0;">No topics added yet</p>'}
         </div>
+        
+        <div class="manual-topic-add">
+          <input type="text" id="add-topic-input-${subId}" placeholder="New topic for ${escapeHtml(sub)}..." class="topic-mini-input" />
+          <button class="btn-mini" onclick="addTopicManual('${sub.replace(/'/g, "\\'")}')">Add</button>
+        </div>
+
         ${milestonesHtml}
       </div>`;
   }).join('');

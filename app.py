@@ -190,6 +190,7 @@ GET_CYCLE_PREDICTION:
 
 ADD_TOPIC:
   data: {{ "subject": "str", "topics": ["topic1", "topic2", ...] }}
+  RULE: Always batch ALL topics mentioned by the user into a single action.
 
 COMPLETE_TOPIC:
   data: {{ "subject": "str", "topic": "str" }}
