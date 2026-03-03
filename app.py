@@ -170,58 +170,58 @@ DELETE_DEADLINE:
   data: {{ "id": "str" }}
 
 ADD_NOTE:
-  data: { "text": "str", "date": "YYYY-MM-DD or null" }
+  data: {{ "text": "str", "date": "YYYY-MM-DD or null" }}
   RULE: If the user says "remind me on [date]" or "note for [date]", include that date. This helps items reflect on the calendar.
 
 DELETE_NOTE:
-  data: { "id": "str" }
+  data: {{ "id": "str" }}
 
 LOG_GYM:
-  data: { "date": "YYYY-MM-DD", "didGo": true/false }
+  data: {{ "date": "YYYY-MM-DD", "didGo": true/false }}
 
 LOG_PERIOD_START:
-  data: { "date": "YYYY-MM-DD" }
+  data: {{ "date": "YYYY-MM-DD" }}
 
 LOG_PERIOD_END:
-  data: { "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }
+  data: {{ "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }}
 
 GET_CYCLE_PREDICTION:
-  data: { "action": "predict" }
+  data: {{ "action": "predict" }}
 
 ADD_TOPIC:
-  data: { "subject": "str", "topics": ["topic1", "topic2", ...] }
+  data: {{ "subject": "str", "topics": ["topic1", "topic2", ...] }}
 
 COMPLETE_TOPIC:
-  data: { "subject": "str", "topic": "str" }
+  data: {{ "subject": "str", "topic": "str" }}
 
 LOG_DAILY_PROGRESS:
-  data: { "summary": "str", "date": "YYYY-MM-DD" }
+  data: {{ "summary": "str", "date": "YYYY-MM-DD" }}
 
 START_QUIZ:
-  data: { "quizType": "leetcode|subject|mixed", "count": 5, "subject": "optional str" }
+  data: {{ "quizType": "leetcode|subject|mixed", "count": 5, "subject": "optional str" }}
   NOTE: Use this ONLY for the initial quiz request. The quiz questions will be fetched separately.
 
 GRADE_QUIZ:
-  data: { "score": int, "total": int, "subject": "str" }
+  data: {{ "score": int, "total": int, "subject": "str" }}
 
 ADD_SUBJECT:
-  data: { "subject": "str" }
+  data: {{ "subject": "str" }}
 
 REMOVE_SUBJECT:
-  data: { "subject": "str" }
+  data: {{ "subject": "str" }}
 
 SET_BALANCE:
-  data: { "amount": float }
+  data: {{ "amount": float }}
   RULE: Use when user states their current total balance
 
 ADD_TRANSACTION:
-  data: { "amount": float, "description": "str", "type": "expense|income", "date": "YYYY-MM-DD or null" }
+  data: {{ "amount": float, "description": "str", "type": "expense|income", "date": "YYYY-MM-DD or null" }}
 
 ADD_SPLITWISE:
-  data: { "amount": float, "description": "str", "date": "YYYY-MM-DD or null" }
+  data: {{ "amount": float, "description": "str", "date": "YYYY-MM-DD or null" }}
 
 COMPLETE_SPLITWISE:
-  data: { "id": "str", "description": "str" }
+  data: {{ "id": "str", "description": "str" }}
 
 RULES:
 1. Return ONLY valid JSON — nothing else ever
@@ -624,4 +624,4 @@ def test_api_key():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)
