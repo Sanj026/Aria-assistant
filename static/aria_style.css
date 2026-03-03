@@ -1024,6 +1024,18 @@ p {
   background: var(--accent);
 }
 
+.cal-dot.blue {
+  background: #3B82F6;
+}
+
+.cal-dot.orange {
+  background: #F97316;
+}
+
+.cal-dot.pink {
+  background: #EC4899;
+}
+
 /* Week view */
 .cal-week-grid {
   display: grid;
@@ -1412,6 +1424,72 @@ p {
 .empty-sub em {
   color: var(--accent-light);
   font-style: normal;
+}
+
+/* Progress -> Topics Milestones */
+.milestones-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+
+.milestones-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.milestone-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.milestone-entry:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+}
+
+.milestone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.milestone-name {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.milestone-date {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.milestone-date.urgent {
+  color: #ff5e5e;
+  font-weight: 600;
+}
+
+.milestone-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--border);
+  color: var(--text2);
 }
 
 .lc-username {
@@ -1805,8 +1883,6 @@ p {
   }
 }
 
-}
-
 /* ===== FINANCE VIEW ===== */
 .finance-content {
   padding: 20px;
@@ -1939,20 +2015,26 @@ p {
   display: flex;
   align-items: center;
   background: var(--bg3);
-  padding: 14px 16px;
-  border-radius: var(--radius);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  transition: all var(--transition);
+}
+
+.finance-tx-item:hover {
+  border-color: var(--border2);
+  background: var(--bg4);
+  transform: translateX(4px);
 }
 
 .finance-tx-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 14px;
   margin-right: 14px;
   flex-shrink: 0;
 }
@@ -1969,6 +2051,28 @@ p {
 
 .finance-tx-details {
   flex: 1;
+}
+
+.finance-tx-desc {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.finance-tx-date {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.finance-tx-amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.finance-tx-amount.text-green {
+  color: var(--green);
 }
 
 /* ===== PERIOD TRACKER STYLES ===== */
@@ -1993,7 +2097,6 @@ p {
   margin-bottom: 12px;
 }
 
-/* End of style.css */
 
 .finance-tx-desc {
   font-size: 14px;

@@ -618,7 +618,7 @@ function handleDeleteDeadline(d) {
 // ===== NOTE ACTIONS =====
 function handleAddNote(d) {
   const notes = get(K.NOTES, []);
-  notes.unshift({ id: uid(), text: d.text, createdAt: today() });
+  notes.unshift({ id: uid(), text: d.text, date: d.date || null, createdAt: today() });
   set(K.NOTES, notes);
   showToast('📝 Note saved!', 'success');
   if (currentView === 'notes') renderNotes();
@@ -759,7 +759,7 @@ function handleAddTransaction(d) {
 
   f.transactions.unshift({
     id: uid(),
-    date: today(),
+    date: d.date || today(),
     amount: amt,
     type: type,
     description: d.description || 'Transaction'
@@ -778,7 +778,7 @@ function handleAddSplitwise(d) {
   const amt = typeof d.amount === 'number' ? d.amount : parseFloat(d.amount) || 0;
   f.splitwise.push({
     id: uid(),
-    date: today(),
+    date: d.date || today(),
     amount: amt,
     description: d.description || 'Splitwise Item',
     status: 'pending'
@@ -899,9 +899,52 @@ function getWeekStart(d) {
   return ws;
 }
 
-function deadlinesForDate(dateStr) {
-  const d = get(K.DEADLINES, []);
-  return d.filter(x => x.dueDate === dateStr || x.startDate === dateStr);
+function entriesForDate(dateStr) {
+  const all = [];
+
+  // Deadlines
+  get(K.DEADLINES, []).forEach(d => {
+    if (d.dueDate === dateStr) all.push({ type: 'deadline_due', color: deadlineColor(d), title: d.title, subject: d.subject });
+    if (d.startDate === dateStr) all.push({ type: 'deadline_start', color: 'purple', title: `Start: ${d.title}`, subject: d.subject });
+  });
+
+  // Notes/Reminders
+  get(K.NOTES, []).forEach(n => {
+    if (n.date === dateStr) all.push({ type: 'note', color: 'blue', title: n.text });
+  });
+
+  // Gym
+  get(K.GYM, []).forEach(g => {
+    if (g.date === dateStr) all.push({ type: 'gym', color: g.didGo ? 'green' : 'red', title: g.didGo ? 'Went to Gym 💪' : 'Skipped Gym 😴' });
+  });
+
+  // Period
+  get(K.PERIOD, []).forEach(p => {
+    if (p.startDate === dateStr) all.push({ type: 'period', color: 'pink', title: 'Period Started 🌸' });
+    if (p.endDate === dateStr) all.push({ type: 'period', color: 'pink', title: 'Period Ended 🌸' });
+  });
+
+  // Finance
+  const f = getFinance();
+  f.transactions.forEach(tx => {
+    const txDate = tx.date || (tx.createdAt ? tx.createdAt.split('T')[0] : null);
+    if (txDate === dateStr) all.push({ type: 'finance', color: 'orange', title: `${tx.type === 'income' ? 'Received' : 'Spent'} ${tx.amount.toLocaleString()}: ${tx.description}` });
+  });
+  f.splitwise.forEach(s => {
+    if (s.date === dateStr) all.push({ type: 'finance', color: 'orange', title: `Splitwise ${s.status === 'done' ? 'Paid' : 'Due'}: ${s.description}` });
+  });
+
+  // Quizzes
+  get(K.QUIZ, []).forEach(q => {
+    if (q.date === dateStr) all.push({ type: 'quiz', color: 'yellow', title: `Quiz: ${q.score}/${q.total} (${q.subject})` });
+  });
+
+  // Daily Progress
+  get(K.PROGRESS, []).forEach(p => {
+    if (p.date === dateStr) all.push({ type: 'progress', color: 'green', title: `Log: ${p.summary.substring(0, 30)}...` });
+  });
+
+  return all;
 }
 
 function renderMonthView() {
@@ -923,14 +966,13 @@ function renderMonthView() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = dateStr === todayStr;
-    const entries = deadlinesForDate(dateStr);
-    const dots = entries.map(e => {
-      const color = e.dueDate === dateStr ? deadlineColor(e) : 'purple';
-      return `<span class="cal-dot ${color}" title="${e.title}"></span>`;
-    }).join('');
+    const entries = entriesForDate(dateStr);
+    const dots = entries.slice(0, 4).map(e => `<span class="cal-dot ${e.color}" title="${e.title}"></span>`).join('');
+    const plusMore = entries.length > 4 ? `<span style="font-size:8px;color:var(--text3);margin-left:2px">+${entries.length - 4}</span>` : '';
+
     html += `<div class="cal-day${isToday ? ' today' : ''}" onclick="showDayDetail('${dateStr}')">
       <div class="cal-day-num">${day}</div>
-      <div class="cal-dot-row">${dots}</div>
+      <div class="cal-dot-row">${dots}${plusMore}</div>
     </div>`;
   }
 
@@ -955,10 +997,10 @@ function renderWeekView() {
     const d = new Date(ws); d.setDate(d.getDate() + i);
     const dateStr = d.toISOString().split('T')[0];
     const isToday = dateStr === todayStr;
-    const entries = deadlinesForDate(dateStr);
+    const entries = entriesForDate(dateStr);
     const items = entries.map(e => {
-      const color = e.dueDate === dateStr ? deadlineColor(e) : 'purple';
-      return `<div class="cal-deadline-item ${color}" title="${e.subject}">${e.title}</div>`;
+      const label = e.type === 'deadline_due' ? '[DUE]' : e.type === 'deadline_start' ? '[START]' : e.type.toUpperCase();
+      return `<div class="cal-deadline-item ${e.color}" style="font-size:10px;margin-bottom:2px;" title="${e.title}">${label} ${e.title}</div>`;
     }).join('');
     html += `<div class="cal-week-day${isToday ? ' today' : ''}">
       <div class="cal-week-day-header">${DAYS[d.getDay()]}</div>
@@ -972,14 +1014,18 @@ function renderWeekView() {
 
 function showDayDetail(dateStr) {
   const panel = document.getElementById('calendar-day-detail');
-  const entries = deadlinesForDate(dateStr);
+  const entries = entriesForDate(dateStr);
   if (!entries.length) { panel.classList.add('hidden'); return; }
-  let html = `<strong style="color:var(--text2);font-size:13px;">${fmtDate(dateStr)}</strong><br>`;
+  let html = `<strong style="color:var(--text);font-size:14px;">${fmtDate(dateStr)}</strong>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">`;
   entries.forEach(e => {
-    const color = e.dueDate === dateStr ? deadlineColor(e) : 'purple';
-    const label = e.dueDate === dateStr ? 'DUE' : 'START';
-    html += `<span class="cal-deadline-item ${color}" style="display:inline-block;margin:4px 4px 0 0">[${label}] ${e.title}${e.subject ? ' · ' + e.subject : ''}</span>`;
+    const label = e.type === 'deadline_due' ? 'DUE' : e.type === 'deadline_start' ? 'START' : e.type.toUpperCase();
+    html += `<div class="cal-deadline-item ${e.color}" style="padding:4px 8px;border-radius:6px;font-size:11px;">
+      <span style="opacity:0.7;font-weight:700;margin-right:4px;">${label}</span> 
+      ${escapeHtml(e.title)} ${e.subject ? `· <span style="opacity:0.8">${escapeHtml(e.subject)}</span>` : ''}
+    </div>`;
   });
+  html += `</div>`;
   panel.innerHTML = html;
   panel.classList.remove('hidden');
 }
@@ -1019,34 +1065,63 @@ function renderDailyLog() {
     <div class="log-entry">
       <div class="log-entry-date">${fmtDate(e.date)}</div>
       <div class="log-entry-text">${escapeHtml(e.summary)}</div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 function renderTopicsTab() {
   const el = document.getElementById('tab-content-topics');
   const topics = getObj(K.TOPICS) || {};
   const subjects = Object.keys(topics);
+  const deadlines = get(K.DEADLINES, []);
+
   if (!subjects.length) {
     el.innerHTML = `<div class="empty-state"><p>No topics tracked yet!</p><p class="empty-sub">Tell Aria: <em>"I am covering system design this month, topics are: load balancing, caching, databases"</em></p></div>`;
     return;
   }
+
   el.innerHTML = subjects.map(sub => {
     const data = topics[sub];
     const allTopics = data.topics || [];
     const completed = data.completed || [];
     const completedSet = new Set(completed.map(c => c.topic));
+
+    // Find deadlines for this subject
+    const subDeadlines = deadlines.filter(d =>
+      d.subject && d.subject.toLowerCase() === sub.toLowerCase() && d.status !== 'done'
+    ).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
     const pct = allTopics.length ? Math.round((completedSet.size / allTopics.length) * 100) : 0;
     const color = pct >= 70 ? 'bar-green' : pct >= 40 ? 'bar-yellow' : 'bar-purple';
+
     const topicList = allTopics.map(t => {
       const done = completedSet.has(t);
       const info = done ? completed.find(c => c.topic === t) : null;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;">
-        <span style="color:${done ? 'var(--green)' : 'var(--text3)'}">${done ? '✓' : '○'}</span>
-        <span style="color:${done ? 'var(--text)' : 'var(--text2)'};">${escapeHtml(t)}</span>
-        ${info ? `<span style="color:var(--text3);font-size:11px;margin-left:auto">${fmtDate(info.date)}</span>` : ''}
+      return `<div class="topic-item">
+        <span class="topic-dot ${done ? 'done' : ''}">${done ? '✓' : '○'}</span>
+        <span class="topic-name ${done ? 'done' : ''}">${escapeHtml(t)}</span>
+        ${info ? `<span class="topic-date">${fmtDate(info.date)}</span>` : ''}
       </div>`;
     }).join('');
+
+    const milestonesHtml = subDeadlines.length ? `
+      <div class="milestones-section">
+        <div class="milestones-title">🎯 Deadlines & Milestones</div>
+        ${subDeadlines.map(d => {
+      const daysLeft = daysBetween(today(), d.dueDate);
+      const isUrgent = daysLeft <= 3;
+      return `
+            <div class="milestone-entry">
+              <div class="milestone-info">
+                <span class="milestone-name">${escapeHtml(d.title)}</span>
+                <span class="milestone-date ${isUrgent ? 'urgent' : ''}">${fmtDate(d.dueDate)} (${daysLeft}d)</span>
+              </div>
+              <div class="milestone-type">${d.type || 'assignment'}</div>
+            </div>
+          `;
+    }).join('')}
+      </div>
+    ` : '';
+
     return `
       <div class="progress-card">
         <div class="progress-card-header">
@@ -1054,13 +1129,17 @@ function renderTopicsTab() {
           <span class="stat-badge">${completedSet.size}/${allTopics.length}</span>
         </div>
         <div class="progress-bar-wrap">
-          <div class="progress-bar-label"><span>Progress</span><span>${pct}%</span></div>
+          <div class="progress-bar-label"><span>Topic Progress</span><span>${pct}%</span></div>
           <div class="progress-bar-track"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div>
         </div>
-        ${topicList || '<p style="color:var(--text3);font-size:13px;">No topics added yet</p>'}
+        <div class="topics-list">
+          ${topicList || '<p style="color:var(--text3);font-size:13px;padding:10px 0;">No topics added yet</p>'}
+        </div>
+        ${milestonesHtml}
       </div>`;
   }).join('');
 }
+
 
 function renderGymTab() {
   const el = document.getElementById('tab-content-gym');
@@ -1117,8 +1196,7 @@ function renderCycleTab() {
         <button class="btn-small" onclick="addHistoricalPeriod()">Add Date</button>
       </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Enter your past period start dates one by one. Aria will analyze your cycle pattern.</p>
-    </div>
-  `;
+    </div>`;
 }
 
 function addHistoricalPeriod() {
@@ -1129,18 +1207,17 @@ function addHistoricalPeriod() {
   }
 
   const log = get(K.PERIOD, []);
-  const existing = log.findIndex(e => e.startDate === input.value);
-  if (existing !== -1) {
+  if (log.findIndex(e => e.startDate === input.value) !== -1) {
     showToast('This date is already logged', 'info');
     input.value = '';
     return;
   }
 
   log.push({ id: uid(), startDate: input.value, endDate: null });
+  log.sort((a, b) => b.startDate.localeCompare(a.startDate)); // Keep chronological
   set(K.PERIOD, log);
   input.value = '';
 
-  // Also save to Supabase
   const user = getObj(K.USER) || {};
   fetch('/api/period/log-start', {
     method: 'POST',
@@ -1177,7 +1254,6 @@ async function refreshLeetCode() {
 
 function renderLeetCodeView() {
   if (lcCache) { renderLeetCodeStats(lcCache, (getObj(K.USER) || {}).leetcodeUsername || ''); return; }
-  // Auto-refresh if username exists
   const user = getObj(K.USER) || {};
   if (user.leetcodeUsername) refreshLeetCode();
 }
@@ -1191,16 +1267,12 @@ function renderLeetCodeStats(data, username) {
   }
   const stats = user.submitStats?.acSubmissionNum || [];
   const allQ = data?.data?.allQuestionsCount || [];
-
   const getCount = (diff) => (stats.find(s => s.difficulty === diff) || {}).count || 0;
   const getTotal = (diff) => (allQ.find(q => q.difficulty === diff) || {}).count || 0;
+
   const easy = getCount('Easy'), medium = getCount('Medium'), hard = getCount('Hard');
   const teasy = getTotal('Easy'), tmedium = getTotal('Medium'), thard = getTotal('Hard');
   const total = easy + medium + hard;
-
-  const pctE = teasy ? Math.round((easy / teasy) * 100) : 0;
-  const pctM = tmedium ? Math.round((medium / tmedium) * 100) : 0;
-  const pctH = thard ? Math.round((hard / thard) * 100) : 0;
 
   const ranking = user.profile?.ranking ? `Rank #${user.profile.ranking.toLocaleString()}` : '';
   const analysis = getLCAnalysis(easy, medium, hard, teasy, tmedium, thard);
@@ -1212,26 +1284,14 @@ function renderLeetCodeStats(data, username) {
       <div style="font-size:28px;font-weight:800;color:var(--accent-light);margin:8px 0">${total} <span style="font-size:15px;color:var(--text3)">solved</span></div>
     </div>
     <div class="lc-stats-grid">
-      <div class="lc-stat-card easy">
-        <div class="lc-stat-count">${easy}</div>
-        <div class="lc-stat-label">Easy</div>
-        <div class="lc-stat-total">/${teasy}</div>
-      </div>
-      <div class="lc-stat-card medium">
-        <div class="lc-stat-count">${medium}</div>
-        <div class="lc-stat-label">Medium</div>
-        <div class="lc-stat-total">/${tmedium}</div>
-      </div>
-      <div class="lc-stat-card hard">
-        <div class="lc-stat-count">${hard}</div>
-        <div class="lc-stat-label">Hard</div>
-        <div class="lc-stat-total">/${thard}</div>
-      </div>
+      <div class="lc-stat-card easy"><div class="lc-stat-count">${easy}</div><div class="lc-stat-label">Easy</div><div class="lc-stat-total">/${teasy}</div></div>
+      <div class="lc-stat-card medium"><div class="lc-stat-count">${medium}</div><div class="lc-stat-label">Medium</div><div class="lc-stat-total">/${tmedium}</div></div>
+      <div class="lc-stat-card hard"><div class="lc-stat-count">${hard}</div><div class="lc-stat-label">Hard</div><div class="lc-stat-total">/${thard}</div></div>
     </div>
     <div class="progress-card">
-      ${renderLCBar('Easy', pctE, 'bar-green')}
-      ${renderLCBar('Medium', pctM, 'bar-yellow')}
-      ${renderLCBar('Hard', pctH, 'bar-red')}
+      ${renderLCBar('Easy', teasy ? Math.round((easy / teasy) * 100) : 0, 'bar-green')}
+      ${renderLCBar('Medium', tmedium ? Math.round((medium / tmedium) * 100) : 0, 'bar-yellow')}
+      ${renderLCBar('Hard', thard ? Math.round((hard / thard) * 100) : 0, 'bar-red')}
     </div>
     <div class="lc-analysis">${analysis}</div>`;
 }
@@ -1245,14 +1305,10 @@ function renderLCBar(label, pct, cls) {
 
 function getLCAnalysis(easy, medium, hard, te, tm, th) {
   const total = easy + medium + hard;
-  if (!total) return "No problems solved yet — time to start grinding! Start with the easy ones to build momentum. You've got this! 💪";
-  const pctM = tm ? Math.round((medium / tm) * 100) : 0;
-  const pctH = th ? Math.round((hard / th) * 100) : 0;
+  if (!total) return "No problems solved yet — time to start grinding!";
   let msg = `✦ You've solved ${total} problems total. `;
-  if (medium < 20) msg += `Focus on building your Medium problem library — it's the bread and butter of interviews. `;
-  else if (pctM < 15) msg += `Your Medium completion rate is at ${pctM}% — keep pushing! `;
+  if (medium < 20) msg += `Focus on building your Medium problem library. `;
   if (hard > 10) msg += `Impressive — you're tackling Hard problems! `;
-  if (pctH < 5 && total > 30) msg += `Try sprinkling in some Hard problems now — you have the foundation. `;
   return msg + `Keep the consistency going! 🎯`;
 }
 
@@ -1271,20 +1327,19 @@ function renderNotes(query = '') {
     <div class="note-card" id="note-${n.id}">
       <div>
         <div class="note-text">${escapeHtml(n.text)}</div>
-        <div class="note-date">${fmtDate(n.createdAt)}</div>
+        <div class="note-date">
+          ${n.date ? `<span style="color:var(--accent-light);font-weight:700;">Reminder: ${fmtDate(n.date)}</span> · ` : ''}
+          Created ${fmtDate(n.createdAt)}
+        </div>
       </div>
       <button class="note-delete" onclick="deleteNoteById('${n.id}')" title="Delete note">🗑</button>
     </div>`).join('');
 }
 
-function filterNotes() {
-  renderNotes(document.getElementById('notes-search').value);
-}
+function filterNotes() { renderNotes(document.getElementById('notes-search').value); }
 
 function deleteNoteById(id) {
-  let notes = get(K.NOTES, []);
-  notes = notes.filter(n => n.id !== id);
-  set(K.NOTES, notes);
+  set(K.NOTES, get(K.NOTES, []).filter(n => n.id !== id));
   renderNotes(document.getElementById('notes-search').value);
   showToast('Note deleted', 'info');
 }
@@ -1379,9 +1434,7 @@ function openSettings() {
   document.getElementById('settings-modal').classList.remove('hidden');
 }
 
-function closeSettings() {
-  document.getElementById('settings-modal').classList.add('hidden');
-}
+function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
 
 function renderSettingsChips() {
   const user = getObj(K.USER) || {};
