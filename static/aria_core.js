@@ -586,6 +586,12 @@ function handleAddDeadline(d) {
   };
   deadlines.push(entry);
   set(K.DEADLINES, deadlines);
+
+  // Sync subject to user.subjects if it exists
+  if (entry.subject) {
+    handleAddSubject({ subject: entry.subject, silent: true });
+  }
+
   showToast(`📅 Deadline added: ${entry.title}`, 'success');
   scheduleDeadlineNotifs();
   scheduleEmailReminders();
@@ -693,6 +699,10 @@ function handlePeriodEnd(d) {
 // ===== TOPIC ACTIONS =====
 function handleAddTopic(d) {
   if (!d.subject || d.subject === 'undefined') return;
+
+  // Ensure subject is tracked
+  handleAddSubject({ subject: d.subject, silent: true });
+
   const topics = getObj(K.TOPICS) || {};
   if (!topics[d.subject]) topics[d.subject] = { topics: [], completed: [] };
   const existing = new Set(topics[d.subject].topics);
@@ -756,12 +766,17 @@ function handleLogProgress(d) {
 
 // ===== SUBJECT ACTIONS =====
 function handleAddSubject(d) {
+  if (!d.subject) return;
   const user = getObj(K.USER) || {};
   if (!user.subjects) user.subjects = [];
-  if (!user.subjects.includes(d.subject)) {
+
+  const subjects = new Set(user.subjects.map(s => s.toLowerCase()));
+  if (!subjects.has(d.subject.toLowerCase())) {
     user.subjects.push(d.subject);
     set(K.USER, user);
-    showToast(`Subject added: ${d.subject}`, 'success');
+    if (!d.silent) showToast(`📚 Subject added: ${d.subject}`, 'success');
+    pushToCloud();
+    if (currentView === 'progress') renderProgress();
   }
 }
 
@@ -1131,16 +1146,28 @@ function renderDailyLog() {
 
 function renderTopicsTab() {
   const el = document.getElementById('tab-content-topics');
+  const user = getObj(K.USER) || {};
+  const subjects = user.subjects || [];
   const topics = getObj(K.TOPICS) || {};
-  const subjects = Object.keys(topics);
   const deadlines = get(K.DEADLINES, []);
 
+  // Header with Add Subject manual control
+  let headerHtml = `
+    <div class="progress-hub-header" style="margin-bottom:20px; padding:15px; background:var(--bg3); border-radius:12px; border:1px solid var(--border);">
+      <div style="font-size:14px; font-weight:600; color:var(--text); margin-bottom:10px;">📚 Manual Management</div>
+      <div class="manual-subject-add" style="display:flex; gap:10px;">
+        <input type="text" id="manual-subject-input" class="topic-mini-input" style="flex:1;" placeholder="New subject (e.g. Data Mining)">
+        <button class="btn-mini" onclick="const val=document.getElementById('manual-subject-input').value.trim(); if(val) handleAddSubject({subject:val})">Add Subject</button>
+      </div>
+    </div>
+  `;
+
   if (!subjects.length) {
-    el.innerHTML = `<div class="empty-state"><p>No topics tracked yet!</p><p class="empty-sub">Tell Aria: <em>"I am covering system design this month, topics are: load balancing, caching, databases"</em></p></div>`;
+    el.innerHTML = headerHtml + `<div class="empty-state"><p>No subjects added yet!</p><p class="empty-sub">Tell Aria: <em>"Data Mining: March 16"</em> or add one manually above! 📚</p></div>`;
     return;
   }
 
-  el.innerHTML = subjects.map(sub => {
+  el.innerHTML = headerHtml + subjects.map(sub => {
     if (!sub || sub === 'undefined') return '';
     const data = topics[sub];
     const allTopics = data.topics || [];
@@ -1205,22 +1232,62 @@ function renderTopicsTab() {
           </div>
           <span class="stat-badge">${completedSet.size}/${allTopics.length}</span>
         </div>
+
         <div class="progress-bar-wrap">
           <div class="progress-bar-label"><span>Topic Progress</span><span>${pct}%</span></div>
           <div class="progress-bar-track"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div>
         </div>
+
         <div class="topics-list">
-          ${topicList || '<p style="color:var(--text3);font-size:13px;padding:10px 0;">No topics added yet</p>'}
-        </div>
-        
-        <div class="manual-topic-add">
-          <input type="text" id="add-topic-input-${subId}" placeholder="New topic for ${escapeHtml(sub)}..." class="topic-mini-input" />
-          <button class="btn-mini" onclick="addTopicManual('${sub.replace(/'/g, "\\'")}')">Add</button>
+          <div style="font-size:12px; font-weight:600; color:var(--text3); margin-bottom:8px; opacity:0.8;">📘 Sub-topics</div>
+          ${topicList || '<p style="color:var(--text3);font-size:13px;padding:10px 0;">No sub-topics added yet</p>'}
         </div>
 
         ${milestonesHtml}
+
+        <div class="subject-card-controls" style="margin-top:20px; border-top:1px dashed var(--border); padding-top:10px;">
+          <div class="manual-topic-add" style="margin-bottom:10px;">
+            <input type="text" id="add-topic-input-${subId}" placeholder="New sub-topic..." class="topic-mini-input" style="flex:1;">
+            <button class="btn-mini" onclick="addTopicManual('${sub.replace(/'/g, "\\'")}')">Add Topic</button>
+          </div>
+          <button class="btn-mini btn-outline" style="width:100%;" onclick="toggleMilestoneForm('${subId}')">＋ Add Manual Milestone</button>
+          
+          <div id="milestone-form-${subId}" class="hidden" style="margin-top:12px; background:var(--bg4); padding:10px; border-radius:8px; border:1px solid var(--border);">
+            <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:10px;">New Milestone</div>
+            <input type="text" id="ms-title-${subId}" class="topic-mini-input" style="width:100%; margin-bottom:8px;" placeholder="Milestone Name">
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <div style="flex:1;">
+                <label style="font-size:10px; color:var(--text3); display:block;">Start Date</label>
+                <input type="date" id="ms-start-${subId}" class="topic-mini-input" style="width:100%;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:10px; color:var(--text3); display:block;">Due Date</label>
+                <input type="date" id="ms-due-${subId}" class="topic-mini-input" style="width:100%;">
+              </div>
+            </div>
+            <button class="btn-mini" style="width:100%;" onclick="addMilestoneManual('${sub.replace(/'/g, "\\'")}', '${subId}')">Save Milestone</button>
+          </div>
+        </div>
       </div>`;
   }).join('');
+}
+
+function toggleMilestoneForm(id) {
+  const el = document.getElementById(`milestone-form-${id}`);
+  el.classList.toggle('hidden');
+}
+
+function addMilestoneManual(subject, id) {
+  const title = document.getElementById(`ms-title-${id}`).value.trim();
+  const start = document.getElementById(`ms-start-${id}`).value;
+  const due = document.getElementById(`ms-due-${id}`).value;
+  if (!title || !due) return showToast('Title and Due Date are required', 'info');
+
+  handleAction({
+    type: 'ADD_DEADLINE',
+    data: { title, subject, startDate: start, dueDate: due, type: 'assignment' }
+  });
+  renderProgress();
 }
 
 

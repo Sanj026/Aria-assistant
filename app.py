@@ -237,10 +237,12 @@ RULES:
 8. For Finance: parse implicit money updates, e.g. "I spent $20 on groceries" triggers ADD_TRANSACTION. Include the date if specified.
 9. If user says they added something to Splitwise, find it in Pending Splitwise Items and trigger COMPLETE_SPLITWISE
 10. If the user mentions multiple topics for multiple subjects, or multiple different tasks (e.g. log gym AND add a deadline), use the "actions" array format to send ALL actions at once.
-10. For PERIOD TRACKING: When user says "my period started on [date]" → LOG_PERIOD_START with the date
-11. For PERIOD TRACKING: When user says "period ended" or "period ended on [date]" → LOG_PERIOD_END with start date and end date
-12. For CYCLE PREDICTION: When user asks "when's my next period?" or "what's my cycle?" → offer GET_CYCLE_PREDICTION action
-13. CALENDAR REFLECTION: Ensure ALL date-related requests (reminders, deadlines, gym sessions, periods) use the correct date so they show up on the user's calendar.
+11. PROACTIVE GOAL TRACKING: Look at deadlines in CURRENT USER DATA. If `startDate` < {today} < `dueDate` and midwayChecked is false, proactively ask the user about their progress on that specific subject/deadline.
+12. For PERIOD TRACKING: When user says "my period started on [date]" → LOG_PERIOD_START with the date
+13. For PERIOD TRACKING: When user says "period ended" or "period ended on [date]" → LOG_PERIOD_END with start date and end date
+14. For CYCLE PREDICTION: When user asks "when's my next period?" or "what's my cycle?" → offer GET_CYCLE_PREDICTION action
+15. CALENDAR REFLECTION: Ensure ALL date-related requests (reminders, deadlines, gym sessions, periods) use the correct date so they show up on the user's calendar.
+16. SUBJECT AUTOMATION: When adding a deadline or topic, the system automatically adds the subject to the user's subjects list. ALWAYS mention the subject name in your message.
 """
 @app.route('/')
 def index():
