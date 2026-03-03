@@ -1385,7 +1385,12 @@ function renderStudyView() {
   }
 
   el.innerHTML = html + subjects.map(sub => {
-    const tasks = study[sub].tasks || [];
+    const tasks = (study[sub].tasks || []).sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'done' ? 1 : -1;
+      const dateA = a.endDate || a.startDate || '9999-12-31';
+      const dateB = b.endDate || b.startDate || '9999-12-31';
+      return dateA.localeCompare(dateB);
+    });
     const completed = tasks.filter(t => t.status === 'done').length;
     const pct = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
     const color = pct >= 70 ? 'bar-green' : pct >= 40 ? 'bar-yellow' : 'bar-purple';
