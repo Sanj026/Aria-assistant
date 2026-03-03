@@ -1,6 +1,6 @@
 # ✦ Aria — Your Personal AI Assistant
 
-Aria is a warm, smart personal AI assistant that manages your college life: deadlines, study progress, quizzes, gym tracking, period tracking, and daily accountability. Built with Python Flask + Groq API (Llama 3).
+Aria is a warm, smart personal AI assistant that manages your college life: deadlines, study progress, quizzes, gym tracking, period tracking, finance tracking, and daily accountability. Built with Python Flask + Groq/Gemini API + Supabase.
 
 ---
 
@@ -8,30 +8,26 @@ Aria is a warm, smart personal AI assistant that manages your college life: dead
 
 ### 1. Prerequisites
 - Python 3.9+
-- A free [Groq API key](https://console.groq.com/keys)
+- A free [Groq API key](https://console.groq.com/keys) or Gemini API key
+- A [Supabase](https://supabase.com/) project (for cross-device sync)
 - (Optional) [EmailJS account](https://www.emailjs.com/) for email reminders
 
 ### 2. Install Dependencies
 
 ```bash
-cd aria
 pip install -r requirements.txt
 ```
 
-> Or use a virtual environment (recommended):
-> ```bash
-> python -m venv venv
-> source venv/bin/activate  # Mac/Linux
-> pip install -r requirements.txt
-> ```
+### 3. Environment Variables
 
-Edit `.env` and replace the placeholder:
+Edit `.env` and configure your keys:
 
 ```
-GROK_API_KEY=your_actual_groq_key_here
+GROK_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
 ```
-
-Get your free key at: https://console.groq.com/keys
 
 ### 4. Run the App
 
@@ -39,61 +35,51 @@ Get your free key at: https://console.groq.com/keys
 python app.py
 ```
 
-Open your browser and go to: **http://127.0.0.1:5000**
+Open: **http://127.0.0.1:5000**
 
 ---
 
-## 📱 Mobile (iPhone Safari)
+## 🔄 Cross-Device Sync (Supabase)
 
-The app is fully mobile-responsive. To use on iPhone:
-1. Run the server on your Mac
-2. Find your Mac's local IP (`ifconfig | grep "inet "`)
-3. Run the server with: `python app.py --host=0.0.0.0`
-4. On iPhone Safari, visit: `http://YOUR_MAC_IP:5000`
-
----
-
-## 📧 Email Reminders (Optional)
-
-1. Sign up at [EmailJS.com](https://www.emailjs.com/) (free tier is fine)
-2. Create a service and an email template
-3. In Aria's Settings (⚙️), enter your EmailJS Service ID, Template ID, and Public Key
-
-Aria will send:
-- Daily 9am digest of what's due this week
-- Email on the start date of each deadline
-- Midway check-in reminders
+Aria now supports real-time sync between your devices (Mac, iPhone, Tablet).
+1. Go to **Settings (⚙️)** on your primary device.
+2. Copy your **Sync Key**.
+3. On your second device, click **"Sync existing data from another device"** during onboarding and enter your key.
+4. Your deadlines, notes, and progress will sync automatically!
 
 ---
 
-## 🔔 Browser Notifications
+## 📅 Universal Calendar Reflection
 
-Aria will ask for notification permission on first load. Allow it to get deadline alerts directly in your browser.
+The calendar is now a single source of truth for your entire life:
+- **Deadlines**: [Starts] and [Dues] are clearly marked.
+- **Notes/Reminders**: "Remind me to..." notes show up on their respective dates.
+- **Wellness**: Gym logs (Green/Red) and Period tracking (Pink) are integrated.
+- **Finance**: Transactions and Splitwise reminds appear automatically.
+- **Quizzes**: View your quiz scores and subjects on the days you took them.
 
 ---
 
-## 💾 Data Storage
+## 📚 Nested Deadlines & Milestones
 
-All your data is stored in your browser's **localStorage** — completely private, no server storage, no accounts. Clearing browser data will reset Aria.
+Manage large projects (like a Dissertation) by breaking them into milestones.
+- **Subject Grouping**: Deadlines with the same subject are grouped together in the **Progress -> Topics** tab.
+- **Countdown**: View how many days are left for each specific milestone directly in the subject card.
 
 ---
 
-## ✦ Features
+## ✦ Features Highlights
 
 | Feature | How to use |
 |---------|-----------|
 | Add deadline | "add bio report due april 2" |
-| Check deadlines | "what's due this week" |
-| Complete deadline | "mark CS assignment as done" |
+| Project milestones | "add dissertation milestone: Intro due next Friday" |
+| Finance | "spent $15 on lunch" or "remind me to pay Sarah $10" |
+| Reminders | "remind me to call the bank tomorrow" |
 | Daily wrap-up | "daily wrapup" or "done for today" |
 | Quiz | "give me a quiz" or "5 leetcode questions" |
-| LeetCode stats | "how's my leetcode" |
-| Track topics | "I finished caching today" |
-| Gym log | "went to gym today" or "skipped gym" |
-| Period log | "period started today" |
-| Quick note | "add note: email professor tomorrow" |
-| Add subject | "add subject: system design" |
-| Daily focus | "what should I focus on today" |
+| Period log | "period started today" or "when is my next period?" |
+| Gym log | "went to gym today" |
 
 ---
 
@@ -101,22 +87,22 @@ All your data is stored in your browser's **localStorage** — completely privat
 
 ```
 aria/
-├── app.py              # Flask backend + Groq API proxy
+├── app.py              # Flask backend + LLM Proxy
+├── supabase_client.py  # Supabase database & Auth logic
 ├── templates/
-│   └── index.html      # Single-page app
+│   └── index.html      # Mobile-responsive frontend
 ├── static/
-│   ├── style.css       # Dark theme, purple accent
-│   └── app.js          # All frontend logic + localStorage
+│   ├── aria_style.css  # Premium Glassmorphism UI
+│   └── aria_core.js    # Core frontend engine & local state
 ├── requirements.txt
-├── .env                # Your API keys (never commit!)
-├── .gitignore
+├── .env                # Private API keys
 └── README.md
 ```
 
 ---
 
-## ⚠️ Notes
+## ⚠️ Privacy & Architecture
 
-- Never commit `.env` to git — it's in `.gitignore`
-- Groq `llama-3.3-70b-versatile` model is high-performance and free-tier friendly
-- All user data lives in localStorage — it's private and local to your browser
+- **Hybrid Storage**: Data is stored in **localStorage** for instant performance and **Supabase** for cross-device sync.
+- **Local-First**: Aria works even with poor connection; syncing happens in the background.
+- **Secure**: Your sync key ensures only you can access your data across devices.
