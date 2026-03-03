@@ -734,8 +734,14 @@ function deleteTopicManual(subject, topic) {
   topics[subject].topics = topics[subject].topics.filter(t => t !== topic);
   topics[subject].completed = topics[subject].completed.filter(c => c.topic !== topic);
 
+  // If no topics left, we can optionaly keep the subject or remove it
+  // Let's keep it for now so they can add topics manually later if they want
+  // BUT if they explicitly remove the whole subject, that's different.
+
   set(K.TOPICS, topics);
   showToast('Topic deleted', 'info');
+  // Trigger immediate push to cloud to prevent pull-overwrite on refresh
+  pushToCloud();
   renderProgress();
 }
 
@@ -760,11 +766,35 @@ function handleAddSubject(d) {
 }
 
 function handleRemoveSubject(d) {
+  if (!d.subject) return;
+
+  // 1. Remove from User Subjects
   const user = getObj(K.USER) || {};
-  if (!user.subjects) return;
-  user.subjects = user.subjects.filter(s => s.toLowerCase() !== d.subject.toLowerCase());
-  set(K.USER, user);
+  if (user.subjects) {
+    user.subjects = user.subjects.filter(s => s.toLowerCase() !== d.subject.toLowerCase());
+    set(K.USER, user);
+  }
+
+  // 2. Remove from Topics Storage (this is what shows in Progress tab)
+  const topics = getObj(K.TOPICS) || {};
+  const lowerSub = d.subject.toLowerCase();
+
+  // Find the actual key (case insensitive check)
+  const actualKey = Object.keys(topics).find(k => k.toLowerCase() === lowerSub);
+  if (actualKey) {
+    delete topics[actualKey];
+    set(K.TOPICS, topics);
+  }
+
+  // Also clean up absolute "undefined" keys
+  if (topics['undefined']) {
+    delete topics['undefined'];
+    set(K.TOPICS, topics);
+  }
+
   showToast(`Subject removed: ${d.subject}`, 'info');
+  pushToCloud(); // Sync immediately
+  if (currentView === 'progress') renderProgress();
 }
 
 // ===== FINANCE ACTIONS =====
