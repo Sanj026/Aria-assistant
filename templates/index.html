@@ -38,12 +38,13 @@
         <input id="ob-name" class="modal-input" type="text" placeholder="Your name..." autocomplete="off"
           maxlength="30" />
         <button class="btn-primary" onclick="obNext(1)">Continue →</button>
-        <div class="mt-8 text-center">
-          <a href="#" class="onboard-skip-link" onclick="obShowSync()">Sync existing data from another device</a>
+        <div class="mt-12 text-center">
+          <button class="btn-ghost-sm" onclick="obShowSync()">Restore from cloud sync?</button>
         </div>
-        <div id="ob-sync-row" class="mt-8 hidden">
-          <input id="ob-sync-key" class="modal-input" type="password" placeholder="Enter Sync Key..." />
-          <button class="btn-secondary-sm mt-4 w-full" onclick="obPerformSync()">Connect & Sync</button>
+        <div id="ob-sync-row" class="mt-12 onboarding-sync-card hidden">
+          <div class="onboard-sync-header">Cloud Restore</div>
+          <input id="ob-sync-key" class="modal-input" type="password" placeholder="Enter your secret sync key..." />
+          <button id="ob-sync-btn" class="btn-primary w-full mt-12" onclick="obPerformSync()">Connect & Sync</button>
         </div>
       </div>
 
@@ -115,14 +116,31 @@
         <input id="settings-ejs-template" class="modal-input mt-8" type="text" placeholder="EmailJS Template ID..." />
         <input id="settings-ejs-email" class="modal-input mt-8" type="email" placeholder="Your email address..." />
       </div>
-      <div class="settings-section">
-        <label class="settings-label">🔄 Cloud Sync (For cross-device access)</label>
-        <div class="subject-input-row">
-          <input id="settings-sync-key" class="modal-input flex-1" type="password" placeholder="Enter Sync Key..." />
-          <button class="btn-icon" onclick="copySyncKey()" title="Copy Key">📋</button>
+      <div class="settings-section sync-section">
+        <div class="settings-label-row">
+          <label class="settings-label">🔄 Cloud Sync</label>
+          <div id="sync-status-badge" class="sync-status-badge">
+            <span class="status-dot"></span>
+            <span class="status-text">Disconnected</span>
+          </div>
         </div>
-        <p class="settings-help">Enter your key on your phone to see your data there! Your key is private.</p>
-        <button class="btn-secondary-sm mt-8" onclick="generateSyncKey()">Generate New Key</button>
+
+        <div class="sync-card">
+          <div class="sync-input-group">
+            <input id="settings-sync-key" class="modal-input" type="password" placeholder="Enter Sync Key..." />
+            <button class="sync-action-btn" onclick="copySyncKey()" title="Copy Key">📋</button>
+            <button class="sync-action-btn" onclick="generateSyncKey()" title="Generate New Key">🆕</button>
+          </div>
+
+          <div class="sync-info-row">
+            <div class="sync-time">Last synced: <span id="last-sync-time">Never</span></div>
+            <button id="manual-sync-btn" class="btn-manual-sync" onclick="performManualSync()" title="Sync Now">
+              <span class="sync-icon">↻</span> Sync Now
+            </button>
+          </div>
+          <p class="settings-help">Use your key on other devices to access your data anywhere. Your key is securely
+            encrypted.</p>
+        </div>
       </div>
       <div class="settings-actions">
         <button class="btn-danger-ghost" onclick="confirmClearData()">🗑 Clear All Data</button>

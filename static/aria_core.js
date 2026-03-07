@@ -212,10 +212,57 @@ async function pullFromCloud() {
         localStorage.setItem(storageKey, JSON.stringify(result.data[storageKey]));
       });
       console.log("☁️ Data pulled from cloud");
+      updateSyncStatus(true);
       return true;
     }
-  } catch (e) { console.error("Sync pull failed", e); }
+    updateSyncStatus(false);
+  } catch (e) {
+    console.error("Sync pull failed", e);
+    updateSyncStatus(false);
+  }
   return false;
+}
+
+function updateSyncStatus(connected) {
+  const badge = document.getElementById('sync-status-badge');
+  const timeEl = document.getElementById('last-sync-time');
+  if (!badge) return;
+
+  if (connected) {
+    badge.classList.add('connected');
+    badge.querySelector('.status-text').textContent = 'Live';
+    timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else {
+    badge.classList.remove('connected');
+    badge.querySelector('.status-text').textContent = 'Offline';
+  }
+}
+
+window.performManualSync = async function () {
+  const btn = document.getElementById('manual-sync-btn');
+  if (btn.classList.contains('spinning')) return;
+
+  btn.classList.add('spinning');
+  showToast('Synchronizing...', 'info');
+
+  try {
+    const success = await pullFromCloud();
+    if (success) {
+      showToast('Cloud sync complete ✓', 'success');
+      // Update current view after sync
+      if (currentView === 'chat') renderMessageDOM(); // actually chat renders from global hist
+      else if (currentView === 'calendar') renderCalendar();
+      else if (currentView === 'progress') renderProgress();
+      else if (currentView === 'finance') renderFinanceView();
+      else if (currentView === 'study') renderStudyView();
+    } else {
+      showToast('Sync check failed', 'error');
+    }
+  } catch (e) {
+    showToast('Sync failed', 'error');
+  } finally {
+    setTimeout(() => btn.classList.remove('spinning'), 800);
+  }
 }
 
 function generateSyncKey() {
@@ -1810,38 +1857,56 @@ function settingsRemoveSubject(sub) {
   renderSettingsChips();
 }
 
-function saveSettings() {
-  const user = getObj(K.USER) || {};
-  user.name = document.getElementById('settings-name').value.trim() || user.name;
-  user.leetcodeUsername = document.getElementById('settings-leetcode').value.trim();
-  user.emailjs = {
-    pubKey: document.getElementById('settings-ejs-pubkey').value.trim(),
-    serviceId: document.getElementById('settings-ejs-service').value.trim(),
-    templateId: document.getElementById('settings-ejs-template').value.trim(),
-    toEmail: document.getElementById('settings-ejs-email').value.trim(),
-  };
-  const syncKey = document.getElementById('settings-sync-key').value.trim();
-  const oldKey = getObj(K.SYNC_KEY);
-  set(K.USER, user);
-  if (syncKey !== oldKey) {
-    localStorage.setItem(K.SYNC_KEY, JSON.stringify(syncKey));
-    if (syncKey) {
-      showToast('🔗 Sync key updated. Syncing...', 'info');
-      initCloudSync();
-      setTimeout(() => {
-        console.log("🚀 Forcing initial cloud push...");
-        pushToCloud();
-      }, 800);
+async function saveSettings() {
+  const saveBtn = document.querySelector('.settings-actions .btn-primary');
+  const originalText = saveBtn.textContent;
+  saveBtn.textContent = 'Saving...';
+  saveBtn.disabled = true;
+
+  try {
+    const user = getObj(K.USER) || {};
+    user.name = document.getElementById('settings-name').value.trim() || user.name;
+    user.leetcodeUsername = document.getElementById('settings-leetcode').value.trim();
+    user.emailjs = {
+      pubKey: document.getElementById('settings-ejs-pubkey').value.trim(),
+      serviceId: document.getElementById('settings-ejs-service').value.trim(),
+      templateId: document.getElementById('settings-ejs-template').value.trim(),
+      toEmail: document.getElementById('settings-ejs-email').value.trim(),
+    };
+
+    const syncKey = document.getElementById('settings-sync-key').value.trim();
+    const oldKey = getObj(K.SYNC_KEY);
+
+    set(K.USER, user);
+
+    if (syncKey !== oldKey) {
+      localStorage.setItem(K.SYNC_KEY, JSON.stringify(syncKey));
+      if (syncKey) {
+        showToast('Linking device...', 'info');
+        const success = await pullFromCloud();
+        if (success) {
+          showToast('Sync active! Refreshing data...', 'success');
+          // Important: full refresh of UI data
+          setTimeout(() => location.reload(), 1000);
+          return;
+        } else {
+          showToast('Could not find data for this key', 'error');
+        }
+      }
     }
+
+    if (user.emailjs.pubKey) {
+      try { emailjs.init(user.emailjs.pubKey); } catch (e) { }
+    }
+    lcCache = null;
+    closeSettings();
+    showToast('Settings saved ✓', 'success');
+  } finally {
+    saveBtn.textContent = originalText;
+    saveBtn.disabled = false;
   }
-  // Init EmailJS if configured
-  if (user.emailjs.pubKey) {
-    try { emailjs.init(user.emailjs.pubKey); } catch (e) { }
-  }
-  lcCache = null; // reset cache so LeetCode reloads with new username
-  closeSettings();
-  showToast('Settings saved ✓', 'success');
 }
+window.saveSettings = saveSettings;
 
 function confirmClearData() {
   if (confirm('⚠️ This will delete ALL of Aria\'s data (deadlines, notes, gym logs, everything). Are you sure?')) {
