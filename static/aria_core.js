@@ -173,7 +173,11 @@ async function initCloudSync() {
   const key = getObj(K.SYNC_KEY);
   if (key) {
     console.log("🔄 Syncing with cloud...");
-    await pullFromCloud();
+    try {
+      await pullFromCloud();
+    } catch (e) {
+      console.warn("Initial sync failed, using local data", e);
+    }
     // Periodic pull every 5 mins
     setInterval(pullFromCloud, 5 * 60 * 1000);
   }
@@ -230,11 +234,13 @@ function updateSyncStatus(connected) {
 
   if (connected) {
     badge.classList.add('connected');
-    badge.querySelector('.status-text').textContent = 'Live';
-    timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const statusText = badge.querySelector('.status-text');
+    if (statusText) statusText.textContent = 'Live';
+    if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   } else {
     badge.classList.remove('connected');
-    badge.querySelector('.status-text').textContent = 'Offline';
+    const statusText = badge.querySelector('.status-text');
+    if (statusText) statusText.textContent = 'Offline';
   }
 }
 
